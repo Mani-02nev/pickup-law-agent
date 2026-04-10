@@ -505,28 +505,13 @@ export const AgentApp: React.FC = () => {
             </button>
           </div>
 
-          {exploreMode && (
-            <div className="flex lg:hidden border-t border-[#111]">
-              {[
-                { id: 'chat',     label: 'Chat',     icon: MessageSquare },
-                { id: 'insights', label: 'Insights', icon: Globe },
-                { id: 'videos',   label: 'Video',    icon: Youtube },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-                  className={clsx('flex-1 py-3 flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all',
-                    activeTab === tab.id ? 'tab-active' : 'tab-inactive')}>
-                  <tab.icon className="w-3.5 h-3.5" />{tab.label}
-                </button>
-              ))}
-            </div>
-          )}
+
         </header>
 
         {/* ── Chat Messages ── */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto custom-scrollbar pt-6 pb-[280px] sm:pb-[260px] px-4 md:px-8">
           <div className="max-w-[720px] mx-auto w-full">
-            {(activeTab === 'chat' || !exploreMode) && (
-              <div className="space-y-1">
+            <div className="space-y-1">
                 <AnimatePresence initial={false}>
                   {messages.map((m, i) => (
                     <motion.div key={m.id}
@@ -585,9 +570,8 @@ export const AgentApp: React.FC = () => {
                   )}
                 </AnimatePresence>
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
         {/* ── BOTTOM CONTROL PANEL ── */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/98 to-transparent px-4 pt-3 pb-4">
