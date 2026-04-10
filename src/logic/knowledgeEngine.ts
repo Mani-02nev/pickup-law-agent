@@ -21,121 +21,165 @@ import { LegalKnowledge, LegalReport } from './types';
 import { lookupIPCSection } from './ipcParser';
 import { runConstitutionEngine } from './constitutionEngine';
 
-// ─── Inline IPC DB: critical sections always available ────────────────────────
+// ─── Inline IPC DB: critical + commonly queried sections ──────────────────────
+// Covers sections NOT in CSV (1–121) + high-priority sections
 const IPC_INLINE: Record<string, LegalKnowledge> = {
+  '1': {
+    title: 'IPC Section 1 — Title and Extent',
+    category: 'Criminal Law / IPC General',
+    summary: 'This section gives the name and territorial extent of the Indian Penal Code.',
+    explanation: 'IPC Section 1 states: "This Act shall be called the Indian Penal Code, and shall extend to the whole of India." This is the foundational provision. The IPC applies uniformly to all persons within Indian territory — whether Indian citizens or foreign nationals — for all offenses committed within India.',
+    punishment: 'No punishment under this section — it is a definitional provision.',
+    simpleExplanation: 'Section 1 simply names the law and says it applies to all of India. Every other section of the IPC derives its authority from this founding provision.',
+    keyPoints: ['IPC applies to all of India', 'Applies to Indian citizens and foreigners alike', 'Enacted in 1860, in force since 1 January 1862', 'Foundation section — not a penal provision'],
+  },
+  '34': {
+    title: 'IPC Section 34 — Common Intention',
+    category: 'Criminal Law / Joint Liability',
+    summary: 'When several persons act together with a common intention, each is liable for the act as if done by each alone.',
+    explanation: 'IPC Section 34 establishes joint criminal liability. It states: "When a criminal act is done by several persons in furtherance of the common intention of all, each of such persons is liable for that act in the same manner as if it were done by him alone." Key requirement: there must be a prior meeting of minds — a shared plan before the act. It is not enough to be present; active participation or shared intention must be proven.',
+    punishment: 'Same punishment as the principal offender. No separate punishment under Section 34 itself — it attaches liability to the main charge.',
+    simpleExplanation: 'If you and others plan a crime together and act on it, you are all equally guilty — even if only one person did the physical act. The law treats all of you as having done it.',
+    keyPoints: ['Requires prior common intention — not formed at the spot', 'All accused must share the criminal purpose', 'Section 34 attaches to the main charge (e.g., murder under 302 r/w 34)', 'Distinct from Section 149 — which covers unlawful assembly without requiring common intention', 'Widely used in gang crime, robbery, and murder cases'],
+  },
+  '96': {
+    title: 'IPC Section 96 — Right of Private Defence',
+    category: 'Criminal Law / Private Defence',
+    summary: 'Nothing is an offense done in the exercise of the right of private defence.',
+    explanation: 'IPC Section 96 establishes the fundamental right of private defence. It provides that acts done in genuine self-defence are not criminal offenses. This right exists to protect a person when the State machinery (police) cannot provide timely protection. The right must be exercised proportionally — only as much force as is necessary to repel the threat. Sections 97 to 106 define the scope and limits of this right.',
+    punishment: 'No punishment — this section provides a complete defence to criminal liability.',
+    simpleExplanation: 'If you genuinely act to protect yourself or your property from an immediate threat, the law recognises your right to do so. You are not committing a crime in that situation.',
+    keyPoints: ['Complete defence against criminal liability', 'Must be exercised in good faith against real threat', 'Right exists because police cannot always prevent crime in time', 'Governed by Sections 96–106 of IPC', 'Force used must be proportional to the threat'],
+  },
+  '97': {
+    title: 'IPC Section 97 — Right to Defend Body and Property',
+    category: 'Criminal Law / Private Defence',
+    summary: 'Every person has the right to defend their own or another\'s body, and their own or another\'s property.',
+    explanation: 'IPC Section 97 explicitly extends the right of private defence to two categories: (1) The human body — every person may defend their own body or that of any other person against any offense affecting the human body. (2) Property — every person may defend their own property (moveable or immoveable) or property of any other person, against theft, robbery, mischief, or criminal trespass.',
+    punishment: 'No punishment — this is a defensive right, not an offense.',
+    simpleExplanation: 'You have a legal right to defend your body from assault and your property from theft or trespass. This applies whether the property is yours or belongs to someone else.',
+    keyPoints: ['Covers defence of body AND property', 'Extends to protecting other persons\' bodies and property', 'Protects against theft, robbery, mischief, criminal trespass', 'Subject to restrictions in subsequent sections (98–106)', 'No duty to retreat before exercising this right'],
+  },
+  '100': {
+    title: 'IPC Section 100 — Right of Private Defence Extending to Causing Death',
+    category: 'Criminal Law / Private Defence',
+    summary: 'The right of private defence of the body extends to causing death in six specific situations of grave danger.',
+    explanation: 'IPC Section 100 is the most powerful provision in private defence law. It allows a person to cause the death of the attacker if facing any of these six specific threats: (1) an assault that reasonably causes apprehension of death, (2) an assault causing apprehension of grievous hurt, (3) an assault with intent to commit rape, (4) an assault with intent to gratify unnatural lust, (5) an assault with intent to kidnap or abduct, (6) an assault with intent to wrongfully confine the person. The key is that the threat must be real, immediate, and the belief must be reasonable.',
+    punishment: 'No punishment if the act is genuinely within the scope of this section. If excessive force is used beyond the necessities, it can lead to culpable homicide charges.',
+    simpleExplanation: 'If someone attacks you in a way that could kill you, seriously injure you, or commit rape or kidnapping against you, the law allows you to defend yourself even if that means killing the attacker.',
+    keyPoints: ['Permits causing death in 6 specific grave threats', 'Threat must be real and immediate — not imagined', 'Belief of danger must be reasonable to a prudent person', 'No duty to retreat — stand your ground law', 'Killing must occur during the continuance of the threat', 'Excessive force beyond necessity can lead to liability'],
+  },
+  '102': {
+    title: 'IPC Section 102 — When Private Defence Right Commences and Ends',
+    category: 'Criminal Law / Private Defence',
+    summary: 'The right of private defence of the body commences as soon as a reasonable apprehension of danger arises and ends when that danger passes.',
+    explanation: 'IPC Section 102 regulates the timing of private defence. The right commences as soon as there is a reasonable apprehension of danger to the body — it does not require the offense to have actually been committed. The right continues as long as the apprehension of danger to the body continues. Once the threat ends, the right ends. Any force used after the threat ends is illegal and will attract criminal liability.',
+    punishment: 'No punishment under this section — it defines temporal scope of the right.',
+    simpleExplanation: 'You can start defending yourself the moment you reasonably believe you are in danger — you need not wait for the first blow. But once the danger is over, you must stop.',
+    keyPoints: ['Right starts at reasonable apprehension of danger — not after actual attack', 'Ends precisely when the threat or apprehension ends', 'Any force after threat ends is illegal retaliation (not defence)', 'The timing of force is crucial in court evaluation', 'Apprehension must be reasonable — not paranoid or imagined'],
+  },
+  '107': {
+    title: 'IPC Section 107 — Abetment of a Thing',
+    category: 'Criminal Law / Abetment',
+    summary: 'A person abets an offense if they instigate, conspire, or intentionally aid another to commit it.',
+    explanation: 'IPC Section 107 defines abetment in three ways: (1) Instigation — actively encouraging, provoking, or inciting a person to commit an offense. (2) Conspiracy — engaging in a conspiracy with one or more persons and an act or illegal omission takes place in pursuance of it. (3) Intentional Aid — facilitating the commission of the act through any act or illegal omission. Abetment requires active participation in the crime\'s commission — mere presence is not abetment.',
+    punishment: 'The same punishment as if the abettor had committed the offense themselves (varies by the main offense abetted).',
+    simpleExplanation: 'If you convince someone to commit a crime, help plan it, or assist in any way — you are equally guilty as the person who actually did it. The law treats the helper and the doer the same way.',
+    keyPoints: ['Three modes: instigation, conspiracy, intentional aid', 'Abettor is equally liable as the principal offender', 'Mere presence is not abetment — active participation required', 'Even if the main offense is not completed, abetment is punishable', 'Related sections: 108, 108A, 109, 110'],
+  },
+  '109': {
+    title: 'IPC Section 109 — Punishment of Abetment if the Act is Committed',
+    category: 'Criminal Law / Abetment',
+    summary: 'If an act is committed as a result of abetment, the abettor receives the same punishment as the principal offender.',
+    explanation: 'IPC Section 109 provides that where an act is committed in consequence of abetment, and no express provision exists for the punishment of that abetment elsewhere, the abettor shall be punished with the punishment provided for the offense. In practice, this means the mastermind who stays in the background and directs others to commit crimes faces identical punishment as the person who physically carries out the act.',
+    punishment: 'Same punishment as the offense abetted (death, life imprisonment, etc. depending on the main offense).',
+    simpleExplanation: 'The organiser of a crime faces the exact same punishment as the person who commits it. Being the brains behind a crime offers no legal protection.',
+    keyPoints: ['Abettor and doer face equal punishment', 'Applies when no specific abetment section covers the offense', 'Widely applied in organised crime, contract killings', 'Prosecution must prove causal link between abetment and the act', 'Knowledge of the specific crime is not always required'],
+  },
+  '120b': {
+    title: 'IPC Section 120B — Criminal Conspiracy',
+    category: 'Criminal Law / Conspiracy',
+    summary: 'Punishment for being part of a criminal conspiracy to commit a serious offense.',
+    explanation: 'IPC Section 120B punishes criminal conspiracy. Section 120A defines criminal conspiracy as an agreement between two or more persons to do or cause to be done an illegal act, or a legal act by illegal means. Section 120B provides the punishment: (1) If the conspiracy is to commit an offense punishable with death, life imprisonment, or imprisonment of 2 years or more — punishment equals that of the offense conspired. (2) For other conspiracies — imprisonment up to 6 months, or fine, or both. The mere agreement itself is the offense — no overt act is required.',
+    punishment: 'Same as the offense conspired for serious offenses. For minor conspiracies — up to 6 months imprisonment + fine.',
+    simpleExplanation: 'Simply agreeing with others to commit a serious crime is itself a crime — even if that crime never happens. The planning and agreement is enough for arrest and prosecution.',
+    keyPoints: ['Mere agreement to commit crime is the offense', 'No overt act needed to trigger Section 120B', 'Widely used in terror cases, financial fraud, organised crime', 'All members of the conspiracy are equally liable', 'Must involve at least two persons — cannot conspire alone'],
+  },
   '302': {
     title: 'IPC Section 302 — Murder',
     category: 'Criminal Law / Capital Offenses',
-    summary: 'Punishment for murder.',
-    explanation:
-      'Whoever commits murder shall be punished with death, or imprisonment for life, and shall also be liable to fine.',
-    punishment: 'Death penalty OR Life imprisonment + Fine.',
-    simpleExplanation:
-      'Intentionally killing someone is murder. The court can sentence a person to death or life in prison.',
-    keyPoints: [
-      'Most serious criminal offense under IPC',
-      'Requires proof of intention — mens rea',
-      'Distinguished from culpable homicide (Section 304)',
-      'Rarest of rare cases attract death penalty',
-    ],
-  },
-  '420': {
-    title: 'IPC Section 420 — Cheating',
-    category: 'Criminal Law / Property Offenses',
-    summary: 'Cheating and dishonestly inducing delivery of property.',
-    explanation:
-      'Whoever cheats and thereby dishonestly induces the person deceived to deliver any property to any person, or to make, alter or destroy the whole or any part of a valuable security, or anything which is signed or sealed, and which is capable of being converted into a valuable security, shall be punished.',
-    punishment: 'Imprisonment up to 7 years + Fine.',
-    simpleExplanation:
-      'If you trick someone into giving you money or property through lies, you are guilty of cheating under IPC 420.',
-    keyPoints: [
-      'Requires fraudulent or dishonest intent',
-      'Property must be delivered because of deceit',
-      'Commonly used in financial fraud, online fraud cases',
-      'Both imprisonment and fine can be imposed',
-    ],
+    summary: 'Punishment for the offense of murder — the intentional killing of another person.',
+    explanation: 'IPC Section 302 states that whoever commits murder as defined under Section 300 shall be punished. Section 300 defines murder as culpable homicide committed with intention to cause death, intention to cause bodily injury likely to cause death, or with knowledge that the act is imminently dangerous. The law distinguishes murder (Section 302) from culpable homicide not amounting to murder (Section 304) based on intent and circumstances.',
+    punishment: 'Death penalty OR Life imprisonment + Fine. The court chooses based on aggravating and mitigating factors.',
+    simpleExplanation: 'Intentionally killing a person is murder — the most serious crime in the IPC. The court can impose either the death penalty or life imprisonment depending on how the crime was committed and the criminal history of the accused.',
+    keyPoints: ['Most serious offense under IPC', 'Requires proof of intention (mens rea)', 'Distinguished from culpable homicide (Section 304) by degree of intent', '"Rarest of rare" doctrine guides death penalty application (Bachan Singh v. State of Punjab, 1980)', 'Non-bailable, cognizable — police can arrest without warrant', 'Trial held exclusively in Sessions Court'],
   },
   '376': {
     title: 'IPC Section 376 — Rape',
     category: 'Criminal Law / Sexual Offenses',
-    summary: 'Punishment for rape.',
-    explanation:
-      'A man is said to commit rape if he has sexual intercourse with a woman against her will, without consent, or with consent obtained under fear, fraud, or intoxication. Punishment: rigorous imprisonment not less than 10 years, extendable to life, plus fine.',
-    punishment: 'Minimum 10 years rigorous imprisonment, extendable to life + Fine.',
-    simpleExplanation:
-      'Sexual intercourse without a woman\'s free consent is rape. The attacker faces at least 10 years in jail.',
-    keyPoints: [
-      'Non-consensual intercourse is rape',
-      'Minimum punishment: 10 years rigorous imprisonment (post-2018 amendment)',
-      'Aggravated forms (gang rape, rape of minor): stricter penalties',
-      'Conviction requires corroborating evidence',
-    ],
+    summary: 'Punishment for the offense of rape — sexual intercourse without consent.',
+    explanation: 'IPC Section 376 punishes rape as defined in Section 375. A man is guilty of rape if he penetrates a woman without her free consent, or with consent obtained by fear, fraud, intoxication, or impersonation. After the 2018 amendment: minimum sentence is 10 years rigorous imprisonment, extendable to life. For rape of a child under 12 years, minimum is 20 years, extendable to death. Gang rape attracts minimum 20 years to life imprisonment.',
+    punishment: 'Minimum 10 years rigorous imprisonment, extendable to life + Fine. For aggravated rape (child, gang rape): minimum 20 years to death.',
+    simpleExplanation: 'Sexual intercourse without a woman\'s free consent is rape under law. The attacker faces a minimum of 10 years in prison — which cannot be reduced below this threshold even by a court.',
+    keyPoints: ['Minimum 10 years RI — cannot be reduced (post-2018 amendment)', 'Consent must be free, voluntary, and not obtained by fear or fraud', 'Marital rape: exception applies except for judicially separated couples', 'Gang rape (Section 376D): 20 years to life', 'Rape of child under 12 (Section 376AB): 20 years to death', 'Non-bailable, cognizable — investigated by police officer of or above Inspector rank'],
   },
   '304': {
     title: 'IPC Section 304 — Culpable Homicide Not Amounting to Murder',
     category: 'Criminal Law / Capital Offenses',
-    summary: 'Punishment for culpable homicide not amounting to murder.',
-    explanation:
-      'Whoever commits culpable homicide not amounting to murder shall be punished with imprisonment for life, or imprisonment of either description for a term which may extend to 10 years, and shall also be liable to fine.',
-    punishment: 'Life imprisonment OR up to 10 years + Fine.',
-    simpleExplanation:
-      'If you kill someone without the full intent required for murder — e.g. in a sudden fight — you can be charged under this section instead of Section 302.',
-    keyPoints: [
-      'Less grave than murder (Section 302)',
-      'Includes culpable homicide with knowledge but not intention',
-      'Part 1: up to life, Part 2: up to 10 years',
-      'Exception for acts done in sudden provocation',
-    ],
+    summary: 'Punishment for culpable homicide that does not cross the threshold of murder.',
+    explanation: 'IPC Section 304 covers homicide that is intentional but falls short of murder under Section 300 — typically because it occurs in a sudden fight, severe provocation, or without premeditation. Part I (with intent): imprisonment for life OR up to 10 years + fine. Part II (with knowledge but without intent): up to 10 years OR fine OR both. The critical legal determination is whether the case falls under Section 302 (murder) or Section 304 (culpable homicide) — often the central issue in Sessions Court trials.',
+    punishment: 'Part I (intent): Life imprisonment OR up to 10 years + fine. Part II (knowledge only): up to 10 years imprisonment OR fine or both.',
+    simpleExplanation: 'If someone is killed without full murder intent — for example in a sudden fight or under extreme provocation — it may be treated as culpable homicide rather than murder. The punishment is less severe than murder but still serious.',
+    keyPoints: ['Less grave than murder — distinction lies in degree of intent', 'Part I: with intention to cause death or grievous hurt', 'Part II: with knowledge but without intention to cause death', 'Sudden fight is a key mitigating factor that reduces murder to Section 304', 'Cognizable and non-bailable', 'Sessions Court sits to try this offense'],
   },
   '354': {
-    title: 'IPC Section 354 — Assault on Woman',
-    category: 'Criminal Law / Sexual Offenses',
-    summary: 'Assault or criminal force to woman with intent to outrage her modesty.',
-    explanation:
-      'Whoever assaults or uses criminal force to any woman, intending to outrage or knowing it to be likely that he will thereby outrage her modesty, shall be punished with imprisonment of either description for a term which shall not be less than one year but which may extend to five years, and shall also be liable to fine.',
-    punishment: 'Minimum 1 year to 5 years imprisonment + Fine.',
-    simpleExplanation:
-      'Touching or attacking a woman in a way that violates her dignity is a crime carrying at least 1 year imprisonment.',
-    keyPoints: [
-      'Minimum imprisonment of 1 year (non-bailable)',
-      'Includes eve-teasing, groping, unwanted touching',
-      'Section 354A covers sexual harassment specifically',
-      'Complaint can be filed at nearest police station',
-    ],
+    title: 'IPC Section 354 — Assault or Criminal Force to Woman',
+    category: 'Criminal Law / Offenses Against Women',
+    summary: 'Assault or use of criminal force against a woman with intent to outrage her modesty.',
+    explanation: 'IPC Section 354 provides that whoever assaults or uses criminal force to any woman, intending to outrage or knowing it to be likely that he will thereby outrage her modesty, shall be punished. The section is widely applied in cases of groping, forcible touching, eve-teasing, and other forms of physical harassment. The intention to outrage modesty is the central element. Related provisions: Section 354A (sexual harassment), 354B (disrobing), 354C (voyeurism), 354D (stalking).',
+    punishment: 'Minimum 1 year imprisonment, extendable to 5 years + Fine. Non-bailable offense.',
+    simpleExplanation: 'Touching, grabbing, or physically attacking a woman in a way that violates her dignity is a criminal offense carrying a minimum 1 year jail term. The law is strict — there is no possibility of a mere fine.',
+    keyPoints: ['Minimum 1 year imprisonment — no lesser sentence permitted', 'Includes groping, forcible touching, eve-teasing', 'Intent to outrage modesty is essential ingredient', 'Non-bailable — accused cannot get bail as of right', 'Related: 354A (sexual harassment), 354C (voyeurism), 354D (stalking)', 'Complaint can be filed at any police station'],
   },
   '498a': {
-    title: 'IPC Section 498A — Cruelty by Husband/Relatives',
-    category: 'Criminal Law / Family Offenses',
-    summary: 'Husband or his relatives subjecting a woman to cruelty.',
-    explanation:
-      'Whoever, being the husband or the relative of the husband of a woman, subjects such woman to cruelty shall be punished with imprisonment for a term which may extend to 3 years and shall also be liable to fine. Cruelty means wilful conduct likely to drive the woman to commit suicide, or grave injury to health, or harassment for dowry.',
-    punishment: 'Up to 3 years imprisonment + Fine. Non-bailable offense.',
-    simpleExplanation:
-      'If a husband or his family mentally or physically abuses a wife — including dowry demands — they can be arrested without bail under this section.',
-    keyPoints: [
-      'Non-bailable and cognizable offense',
-      'Covers both physical and mental cruelty',
-      'Includes dowry harassment',
-      'Wife or her family can file the complaint',
-    ],
+    title: 'IPC Section 498A — Cruelty by Husband or Relatives',
+    category: 'Criminal Law / Matrimonial Offenses',
+    summary: 'Punishment for husband or his relatives subjecting a married woman to cruelty.',
+    explanation: 'IPC Section 498A defines cruelty as: (a) willful conduct likely to drive the woman to suicide or cause grave injury to her life, limb, or health (mental or physical); or (b) harassment to coerce her or her relatives to meet unlawful demands for property or valuable security (dowry harassment). The offense is cognizable, non-bailable, and non-compoundable (cannot be settled privately without court approval). In 2014, the Supreme Court (Arnesh Kumar v. State of Bihar) directed police not to automatically arrest without proper investigation.',
+    punishment: 'Imprisonment up to 3 years + Fine. Non-bailable offense.',
+    simpleExplanation: 'If a husband or his family physically or mentally abuses a wife — including demanding dowry — they can be arrested without bail. The law specifically protects married women from domestic cruelty.',
+    keyPoints: ['Cognizable, non-bailable, non-compoundable offense', 'Covers physical AND mental cruelty, including dowry demands', 'Wife, her parents, or any relative can file the complaint', 'Arnesh Kumar (2014 SC) — police must follow procedure, not auto-arrest', 'Cannot be compounded (settled) without Magistrate\'s permission', 'Related: Domestic Violence Act 2005 for civil reliefs'],
+  },
+  '420': {
+    title: 'IPC Section 420 — Cheating and Dishonest Inducement',
+    category: 'Criminal Law / Property Offenses',
+    summary: 'Punishment for cheating that involves delivering property or destroying a valuable security.',
+    explanation: 'IPC Section 420 is a more serious form of cheating than Section 417. It applies when cheating causes the victim to (1) deliver property to any person, (2) make, alter, or destroy a valuable security, or (3) anything capable of being converted into a valuable security. Essential ingredients: (a) deception by the accused, (b) the deception caused the victim to act, (c) the victim suffered harm. Online fraud, Ponzi schemes, and investment scams are commonly charged under this section.',
+    punishment: 'Imprisonment up to 7 years + Fine.',
+    simpleExplanation: 'If someone tricks you into giving them money, property, or signs a document through lies and fraud — that is IPC 420. It covers everything from investment fraud to fake job offers to online scams.',
+    keyPoints: ['Requires: deceit + victim acting on deceit + harm', 'Covers financial fraud, online scams, fake investment schemes', 'Higher penalty than simple cheating (Section 417)', 'Non-bailable for amounts above ₹5000 in most states', 'FIR can be filed at any police station where the transaction occurred', 'Also attracts IT Act sections for cyber fraud'],
+  },
+  '511': {
+    title: 'IPC Section 511 — Punishment for Attempting to Commit Offenses',
+    category: 'Criminal Law / Attempt',
+    summary: 'General provision punishing attempts to commit offenses where the IPC prescribes no specific punishment for attempt.',
+    explanation: 'IPC Section 511 is the residuary provision for attempts. It states: whoever attempts to commit an offense punishable under the IPC (or causes a person to attempt it) and in such attempt does any act towards the commission of the offense shall, where no express provision is made by the Code for the punishment of such attempt, be punished with imprisonment up to half of the longest term provided for the offense, or with fine, or with both. This is the last section of the IPC.',
+    punishment: 'Up to half the maximum punishment prescribed for the full offense + Fine.',
+    simpleExplanation: 'If you try to commit a crime but fail or are stopped — you are still guilty of an attempt and can be punished, though the sentence is lighter than if you had succeeded.',
+    keyPoints: ['Last section of the IPC (511 total sections)', 'Residuary attempt provision — applies when no specific attempt clause exists', 'Punishment: up to half the maximum of the full offense', 'Many offenses have specific attempt provisions (e.g. Section 307 — attempt to murder)', 'Attempt requires: intention + some act towards commission', 'Mere preparation is not attempt — must cross into execution'],
   },
   '144': {
-    title: 'IPC Section 144 / CrPC Section 144',
+    title: 'IPC Section 188 / CrPC Section 144 — Disobedience to Order',
     category: 'Criminal Law / Public Order',
-    summary: 'Section 144 CrPC: order to prevent imminent danger to public peace.',
-    explanation:
-      'Under Section 144 of the Code of Criminal Procedure (CrPC), a District Magistrate can prohibit assembly of 4 or more persons in an area to prevent obstruction, annoyance, or danger. Violation is punishable under IPC Section 188.',
-    punishment: 'Violation under IPC 188: Simple imprisonment up to 1 month, or Fine, or both (up to 6 months if danger to life).',
-    simpleExplanation:
-      'When the government fears riots or public disorder, it can declare Section 144 — this bans gatherings of 4 or more people in the area.',
-    keyPoints: [
-      'Imposed by District Magistrate or SDM',
-      'Valid for up to 2 months (60 days)',
-      'Violation is punishable under IPC Section 188',
-      'Often used to prevent protests or communal tensions',
-    ],
+    summary: 'CrPC Section 144 bans gatherings of 4+ persons to prevent public disorder. Violation is punishable under IPC Section 188.',
+    explanation: 'CrPC Section 144 empowers a District Magistrate, SDM, or Executive Magistrate to issue orders prohibiting assembly of 4 or more persons in an area when there is apprehension of public nuisance, danger to human life, or disturbing public tranquility. The order is valid for 2 months (60 days) and can extend to 6 months in special circumstances. Violation of such an order is an offense under IPC Section 188 — punishable with simple imprisonment up to 1 month or fine up to ₹200, or if the violation tends to cause danger to human life, obstruction, annoyance, or injury — up to 6 months imprisonment or fine or both.',
+    punishment: 'IPC 188: Simple imprisonment up to 1 month + Fine (up to 6 months if dangerous violation).',
+    simpleExplanation: 'When the government imposes Section 144, gatherings of 4 or more people are banned in that area. Breaking this order is a crime. It is commonly used during riots, protests, or communal tension.',
+    keyPoints: ['Imposed by District Magistrate or SDM', 'Bans assembly of 4 or more persons', 'Valid for 60 days, extendable to 6 months', 'Violation punishable under IPC Section 188', 'Used during riots, elections, sensitive communal situations', 'Can be challenged in High Court through writ petition'],
   },
 };
+
+
 
 // ─── Extract section number from IPC query ────────────────────────────────────
 export function extractSectionNumber(query: string): string | null {

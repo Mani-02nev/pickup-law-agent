@@ -1,79 +1,83 @@
 /**
- * ipcParser.ts
- * Parses the bundled ipc_sections.csv and builds a fast in-memory lookup map.
+ * ipcParser.ts — v3 FINAL
+ *
+ * FIXES:
+ *  1. Proper RFC-4180 CSV parser — handles multi-line quoted fields correctly
+ *  2. Robust field extraction — description is col 0, offense col 1, punishment col 2, section col 3
+ *  3. Multiple lookup aliases per section (e.g. "498a" => "498A")
+ *  4. Lawyer-quality text extraction from description field
+ *
  * CSV columns: Description, Offense, Punishment, Section
+ * Section format in CSV: IPC_302, IPC_498A, IPC_121A, etc.
  */
 
 import { LegalKnowledge } from './types';
-
-// Vite raw import of the CSV
 import rawCsv from '../data/ipc_sections.csv?raw';
 
 interface RawIPCRow {
   description: string;
-  offense: string;
-  punishment: string;
-  section: string; // e.g. "IPC_127"
+  offense:     string;
+  punishment:  string;
+  section:     string; // e.g. "IPC_302"
 }
 
-// ─── Parse CSV ──────────────────────────────────────────────────────────────
+// ─── RFC-4180 compliant CSV parser ───────────────────────────────────────────
+// Handles: multi-line quoted fields, escaped quotes (""), \r\n and \n endings
 function parseCSV(csv: string): RawIPCRow[] {
   const rows: RawIPCRow[] = [];
-  let i = 0;
-  const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  // Skip header row
-  const firstNewline = lines.indexOf('\n');
-  i = firstNewline + 1;
+  // Normalise all line endings to \n
+  const text = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  let pos    = 0;
+  const len  = text.length;
 
-  while (i < lines.length) {
-    // Parse a complete record (may span multiple lines due to quoted fields)
-    const fields: string[] = [];
-    let field = '';
-    let inQuotes = false;
-
-    while (i < lines.length) {
-      const ch = lines[i];
-
-      if (inQuotes) {
-        if (ch === '"') {
-          if (lines[i + 1] === '"') {
-            field += '"';
-            i += 2;
-          } else {
-            inQuotes = false;
-            i++;
-          }
+  function parseField(): string {
+    if (pos >= len) return '';
+    if (text[pos] === '"') {
+      // Quoted field
+      pos++; // skip opening quote
+      let value = '';
+      while (pos < len) {
+        if (text[pos] === '"') {
+          if (text[pos + 1] === '"') { value += '"'; pos += 2; } // escaped quote
+          else { pos++; break; }                                  // closing quote
         } else {
-          field += ch;
-          i++;
-        }
-      } else {
-        if (ch === '"') {
-          inQuotes = true;
-          i++;
-        } else if (ch === ',') {
-          fields.push(field.trim());
-          field = '';
-          i++;
-        } else if (ch === '\n') {
-          fields.push(field.trim());
-          field = '';
-          i++;
-          break;
-        } else {
-          field += ch;
-          i++;
+          value += text[pos++];
         }
       }
+      return value.trim();
+    } else {
+      // Unquoted field — read until comma or newline
+      let value = '';
+      while (pos < len && text[pos] !== ',' && text[pos] !== '\n') {
+        value += text[pos++];
+      }
+      return value.trim();
     }
+  }
 
-    if (fields.length >= 4) {
+  function parseLine(): string[] {
+    const fields: string[] = [];
+    while (pos < len && text[pos] !== '\n') {
+      fields.push(parseField());
+      if (pos < len && text[pos] === ',') pos++; // skip comma separator
+    }
+    if (pos < len && text[pos] === '\n') pos++;   // skip newline
+    return fields;
+  }
+
+  // Skip header row
+  parseLine();
+
+  // Parse data rows
+  while (pos < len) {
+    const fields = parseLine();
+    if (fields.length >= 4 && fields[3].startsWith('IPC_')) {
       rows.push({
         description: fields[0],
-        offense: fields[1],
-        punishment: fields[2],
-        section: fields[3],
+        offense:     fields[1],
+        punishment:  fields[2],
+        section:     fields[3],
       });
     }
   }
@@ -81,65 +85,103 @@ function parseCSV(csv: string): RawIPCRow[] {
   return rows;
 }
 
-// ─── Extract simple words block ─────────────────────────────────────────────
-function extractSimpleWords(description: string): string {
-  const marker = 'in Simple Words\n';
-  const idx = description.toLowerCase().indexOf('in simple words\n');
-  if (idx === -1) return '';
-  return description.slice(idx + marker.length).trim();
+// ─── Extract clean legal explanation ─────────────────────────────────────────
+function extractExplanation(desc: string, offense: string): string {
+  if (!desc || desc.length < 20) return offense;
+
+  // Try to find "According to section X" sentence
+  const match = desc.match(/According to section[^,\n]+,\s*([^]+?)(?:\n\n|---|\$)/i);
+  if (match && match[1].trim().length > 30) return match[1].trim().replace(/\n+/g, ' ');
+
+  // Try paragraph after "Section X of IPC"  
+  const match2 = desc.match(/Section \d+[A-Z]? of the Indian Penal Code[^.]+\.\s*([^]+?)(?:\n\n|---|$)/i);
+  if (match2 && match2[1].trim().length > 20) return (match2[0] + ' ' + match2[1]).trim().replace(/\n+/g, ' ');
+
+  // Fall back to first 500 chars, cleaned
+  return desc.replace(/\n+/g, ' ').replace(/---+/g, '').trim().slice(0, 500);
 }
 
-// ─── Extract full legal explanation ─────────────────────────────────────────
-function extractExplanation(description: string): string {
-  // Grab the paragraph after "According to section X of Indian penal code,"
-  const match = description.match(/According to section [^\n,]+,\s*([\s\S]*?)(?:IPC \d|$)/i);
-  if (match) return match[1].trim().replace(/\n+/g, ' ');
-  return description.slice(0, 400).trim();
+// ─── Extract "In Simple Words" section ────────────────────────────────────────
+function extractSimpleWords(desc: string, offense: string): string {
+  const idx = desc.toLowerCase().indexOf('in simple words');
+  if (idx !== -1) {
+    const after = desc.slice(idx).replace(/^in simple words[\s\n:]+/i, '').trim();
+    const clean = after.replace(/\n+/g, ' ').replace(/---+/g, '').slice(0, 300);
+    if (clean.length > 20) return clean;
+  }
+  // Fallback: rephrase offense simply
+  return `Under IPC, ${offense.toLowerCase()} is a punishable offense that courts take seriously.`;
 }
 
-// ─── Build Knowledge from row ────────────────────────────────────────────────
+// ─── Build lawyer-quality key points ─────────────────────────────────────────
+function buildKeyPoints(row: RawIPCRow): string[] {
+  const points: string[] = [];
+  const num = row.section.replace('IPC_', '');
+  points.push(`Defined under IPC Section ${num}`);
+  if (row.offense)     points.push(`Offense: ${row.offense}`);
+  if (row.punishment)  points.push(`Penalty: ${row.punishment}`);
+
+  // Add cognizable classification hints
+  const p = row.punishment.toLowerCase();
+  if (p.includes('death') || p.includes('life')) {
+    points.push('Cognizable and non-bailable offense — police can arrest without warrant');
+    points.push('Trial held in Sessions Court');
+  } else if (p.includes('year') || p.includes('imprisonment')) {
+    points.push('Cognizable offense — FIR can be filed directly');
+  }
+  if (p.includes('fine')) points.push('Financial penalty (fine) may also be imposed by the court');
+  return points;
+}
+
+// ─── Convert row → LegalKnowledge ────────────────────────────────────────────
 function rowToKnowledge(row: RawIPCRow): LegalKnowledge {
-  const sectionLabel = row.section.replace('IPC_', 'IPC Section ');
-  const simpleWords = extractSimpleWords(row.description);
-  const explanation = extractExplanation(row.description);
+  const num    = row.section.replace('IPC_', '');
+  const title  = `IPC Section ${num} — ${row.offense}`;
+  const explanation   = extractExplanation(row.description, row.offense);
+  const simpleWords   = extractSimpleWords(row.description, row.offense);
 
   return {
-    title: sectionLabel,
-    category: 'Criminal Law / IPC',
-    summary: row.offense || 'See full description.',
-    explanation: explanation || row.offense,
-    punishment: row.punishment || 'Refer to Bare Act.',
-    simpleExplanation: simpleWords || row.offense,
-    keyPoints: [
-      `Section identifier: ${row.section.replace('_', ' ')}`,
-      `Offense: ${row.offense}`,
-      `Penalty: ${row.punishment}`,
-    ],
+    title,
+    category:           'Criminal Law / IPC',
+    summary:            row.offense || `Offense under IPC Section ${num}`,
+    explanation:        explanation || row.offense,
+    punishment:         row.punishment  || 'Punishment as determined by the court',
+    simpleExplanation:  simpleWords,
+    keyPoints:          buildKeyPoints(row),
   };
 }
 
-// ─── Build lookup map (lazy-initialized) ────────────────────────────────────
+// ─── Build lookup map (lazy-initialized) ─────────────────────────────────────
 let _ipcMap: Map<string, LegalKnowledge> | null = null;
 
 export function getIPCMap(): Map<string, LegalKnowledge> {
   if (_ipcMap) return _ipcMap;
-
   _ipcMap = new Map();
+
   const rows = parseCSV(rawCsv);
 
   for (const row of rows) {
-    // Section key: e.g. "127", "121A"
-    const key = row.section.replace('IPC_', '').toLowerCase();
+    // Primary key: numeric part lowercase, e.g. "302", "498a", "121a"
+    const rawKey = row.section.replace('IPC_', '');
+    const key    = rawKey.toLowerCase();
+
     if (!_ipcMap.has(key)) {
       _ipcMap.set(key, rowToKnowledge(row));
+    }
+
+    // Also store WITHOUT letter suffix as alias if numeric only, e.g. "304" for "304A"
+    const numOnly = rawKey.replace(/[a-z]+$/i, '').toLowerCase();
+    if (numOnly !== key && !_ipcMap.has(numOnly)) {
+      _ipcMap.set(numOnly, rowToKnowledge(row));
     }
   }
 
   return _ipcMap;
 }
 
-/** Lookup a section by number string like "127", "420", "121A" */
+/** Lookup by section string like "302", "420", "498A", "498a" */
 export function lookupIPCSection(sectionNum: string): LegalKnowledge | null {
   const map = getIPCMap();
-  return map.get(sectionNum.toLowerCase()) ?? null;
+  const key = sectionNum.toLowerCase().trim();
+  return map.get(key) ?? null;
 }
