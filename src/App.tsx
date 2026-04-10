@@ -2,13 +2,15 @@ import React from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { Landing } from './pages/Landing';
 import { Auth } from './pages/Auth';
+import { AuthCallback } from './pages/AuthCallback';
 import { AgentApp } from './pages/AgentApp';
 
 const router = createBrowserRouter([
-  { path: "/", element: <Landing /> },
-  { path: "/auth", element: <Auth /> },
-  { path: "/app", element: <AgentApp /> },
-  { path: "*", element: <Navigate to="/" replace /> }
+  { path: "/",              element: <Landing /> },
+  { path: "/auth",          element: <Auth /> },
+  { path: "/auth/callback", element: <AuthCallback /> },
+  { path: "/app",           element: <AgentApp /> },
+  { path: "*",              element: <Navigate to="/" replace /> },
 ], {
   future: {
     v7_startTransition: true,
