@@ -15,7 +15,7 @@ import { classifyIntent } from '../logic/classifier';
 import { QUESTION_TREES } from '../logic/questionTree';
 import { generateDecision } from '../logic/decisionEngine';
 import { handleKnowledgeQuery, handleIPCQuery } from '../logic/knowledgeEngine';
-import { fetchWebInsights, fetchYouTubeVideos } from '../utils/integrations';
+import { fetchWebInsights, fetchYouTubeVideos, CONTENT_LANGUAGES, DEFAULT_LANGUAGE, ContentLanguage } from '../utils/integrations';
 import { generateSuggestions } from '../logic/suggestions';
 import { LegalReport, ChatState, LegalCategory, UserRole, ThinkingState, Suggestion } from '../logic/types';
 import { ChatMessage, AgentStatusBar, TypingIndicator } from '../components/Chat/ChatMessage';
@@ -79,6 +79,8 @@ export const AgentApp: React.FC = () => {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput]     = useState('');
+  const [videoLang, setVideoLang]     = useState<ContentLanguage>(DEFAULT_LANGUAGE);
+  const [showLangPicker, setShowLangPicker] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -293,7 +295,7 @@ export const AgentApp: React.FC = () => {
 
       const [insRes, vidRes] = await Promise.allSettled([
         exploreMode ? fetchWebInsights(chatState.category.replace('_case', '')) : Promise.resolve([]),
-        exploreMode ? fetchYouTubeVideos(chatState.category.replace('_case', ' legal India')) : Promise.resolve([]),
+        exploreMode ? fetchYouTubeVideos(chatState.category.replace('_case', ' legal India'), videoLang) : Promise.resolve([]),
       ]);
       const insights = insRes.status === 'fulfilled' ? insRes.value : [];
       const videos   = vidRes.status === 'fulfilled' ? vidRes.value : [];
@@ -624,7 +626,7 @@ export const AgentApp: React.FC = () => {
               </motion.button>
 
               <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => setExploreMode(v => !v)}
+                onClick={() => { setExploreMode(v => !v); setShowLangPicker(false); }}
                 className={clsx('flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
                   exploreMode ? 'bg-white text-black border-white' : 'border-[#1a1a1a] text-zinc-500 hover:border-zinc-600 hover:text-white')}>
                 <Zap className={clsx('w-3.5 h-3.5', exploreMode ? 'text-black' : 'text-zinc-600')} />
@@ -633,7 +635,48 @@ export const AgentApp: React.FC = () => {
                   <span className={clsx('absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all', exploreMode ? 'right-0.5 bg-zinc-400' : 'left-0.5 bg-zinc-500')} />
                 </span>
               </motion.button>
+
+              {/* Language picker — only when Explore is ON */}
+              {exploreMode && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowLangPicker(v => !v)}
+                  className={clsx(
+                    'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
+                    showLangPicker ? 'bg-white text-black border-white' : 'border-[#1a1a1a] text-zinc-500 hover:border-zinc-600 hover:text-white'
+                  )}>
+                  <span className="text-sm">{videoLang.flag}</span>
+                  {videoLang.label}
+                </motion.button>
+              )}
             </div>
+
+            {/* Language picker dropdown — scrollable pill row */}
+            <AnimatePresence>
+              {exploreMode && showLangPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }}
+                  className="flex items-center gap-2 overflow-x-auto no-scrollbar p-3 bg-[#070707] border border-[#1a1a1a] rounded-2xl">
+                  <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest shrink-0">🎥 YouTube Language:</span>
+                  {CONTENT_LANGUAGES.map(lang => (
+                    <motion.button
+                      key={lang.code}
+                      whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                      onClick={() => { setVideoLang(lang); setShowLangPicker(false); }}
+                      className={clsx(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10px] font-black transition-all shrink-0',
+                        videoLang.code === lang.code
+                          ? 'bg-white text-black border-white'
+                          : 'border-[#1a1a1a] text-zinc-400 hover:border-zinc-600 hover:text-white'
+                      )}>
+                      <span className="text-sm">{lang.flag}</span>{lang.label}
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Input */}
             <div className="relative">

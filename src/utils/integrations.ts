@@ -1,12 +1,12 @@
 /**
- * integrations.ts
+ * integrations.ts — FINAL RELEASE
  *
- * FINAL RELEASE — Web Intelligence + YouTube Integration
+ * Web Intelligence + YouTube Integration with Language Support
  *
  * Architecture:
  *  - SerpAPI: called via allorigins.win CORS proxy (no backend needed for Vite).
- *    Keys stay in .env. For production deploy, move to /api/search Vercel function.
  *  - YouTube Data API v3: direct (CORS-safe GET, no write ops).
+ *    Language selector changes: relevanceLanguage, regionCode, and search query.
  *  - Both functions NEVER throw — always return curated fallback data on error.
  */
 
@@ -25,6 +25,28 @@ export interface VideoGuide {
   videoId:   string;
   thumbnail: string;
 }
+
+// ─── Supported Languages ─────────────────────────────────────────────────────
+export interface ContentLanguage {
+  code:       string;   // YouTube relevanceLanguage code
+  region:     string;   // YouTube regionCode
+  label:      string;   // Display name
+  flag:        string;  // Emoji flag
+  queryAppend: string;  // Appended to YouTube search query
+}
+
+export const CONTENT_LANGUAGES: ContentLanguage[] = [
+  { code: 'en', region: 'IN', label: 'English',    flag: '🇬🇧', queryAppend: 'Indian law legal explanation' },
+  { code: 'ta', region: 'IN', label: 'Tamil',      flag: '🇮🇳', queryAppend: 'சட்டம் விளக்கம் India' },
+  { code: 'hi', region: 'IN', label: 'Hindi',      flag: '🇮🇳', queryAppend: 'भारतीय कानून हिंदी में' },
+  { code: 'te', region: 'IN', label: 'Telugu',     flag: '🇮🇳', queryAppend: 'చట్టం వివరణ India' },
+  { code: 'ml', region: 'IN', label: 'Malayalam',  flag: '🇮🇳', queryAppend: 'നിയമം India Malayalam' },
+  { code: 'kn', region: 'IN', label: 'Kannada',    flag: '🇮🇳', queryAppend: 'ಕಾನೂನು ಭಾರತ Kannada' },
+  { code: 'mr', region: 'IN', label: 'Marathi',    flag: '🇮🇳', queryAppend: 'कायदा Marathi India' },
+  { code: 'bn', region: 'IN', label: 'Bengali',    flag: '🇮🇳', queryAppend: 'আইন বাংলা India' },
+];
+
+export const DEFAULT_LANGUAGE = CONTENT_LANGUAGES[0]; // English
 
 // ─── Curated static fallbacks per legal topic ────────────────────────────────
 const STATIC_INSIGHTS: Record<string, WebInsight[]> = {
@@ -54,21 +76,6 @@ const STATIC_INSIGHTS: Record<string, WebInsight[]> = {
   ],
 };
 
-const STATIC_VIDEOS: Record<string, VideoGuide[]> = {
-  property: [
-    { title: 'Property Dispute Solutions India | Legal Guide', videoId: 'dQw4w9WgXcQ', thumbnail: '' },
-  ],
-  criminal: [
-    { title: 'How to File an FIR in India | Step by Step', videoId: 'dQw4w9WgXcQ', thumbnail: '' },
-  ],
-  ipc: [
-    { title: 'IPC Sections Explained | Important IPC Laws', videoId: 'dQw4w9WgXcQ', thumbnail: '' },
-  ],
-  constitution: [
-    { title: 'Indian Constitution Explained | Fundamental Rights', videoId: 'dQw4w9WgXcQ', thumbnail: '' },
-  ],
-};
-
 /** Maps a case/query string to a known topic key */
 function detectTopic(query: string): string {
   const q = query.toLowerCase();
@@ -78,14 +85,13 @@ function detectTopic(query: string): string {
   if (q.includes('employment') || q.includes('job') || q.includes('salary') || q.includes('termination')) return 'employment';
   if (q.includes('ipc') || q.includes('section') || q.includes('penal')) return 'ipc';
   if (q.includes('constitution') || q.includes('article') || q.includes('fundamental')) return 'constitution';
-  return 'ipc'; // default
+  return 'ipc';
 }
 
 // ─── SerpAPI via CORS proxy ───────────────────────────────────────────────────
 export const fetchWebInsights = async (query: string): Promise<WebInsight[]> => {
   const topic = detectTopic(query);
 
-  // No key → static insights
   if (!SERP_KEY || SERP_KEY.length < 10) {
     return STATIC_INSIGHTS[topic] || STATIC_INSIGHTS['ipc'];
   }
@@ -112,29 +118,40 @@ export const fetchWebInsights = async (query: string): Promise<WebInsight[]> => 
   }
 };
 
-// ─── YouTube Data API v3 ──────────────────────────────────────────────────────
-export const fetchYouTubeVideos = async (query: string): Promise<VideoGuide[]> => {
-  const topic = detectTopic(query);
-
-  if (!YT_KEY || YT_KEY.length < 10) {
-    // Return empty so static panel shows nothing (avoids broken embeds)
-    return [];
-  }
+// ─── YouTube Data API v3 — with Language Support ──────────────────────────────
+export const fetchYouTubeVideos = async (
+  query: string,
+  lang: ContentLanguage = DEFAULT_LANGUAGE
+): Promise<VideoGuide[]> => {
+  if (!YT_KEY || YT_KEY.length < 10) return [];
 
   try {
-    const searchQuery = `${query} Indian law legal explanation`;
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=2&q=${encodeURIComponent(searchQuery)}&key=${YT_KEY}&type=video&relevanceLanguage=en&regionCode=IN`;
+    // Build language-aware search query
+    const searchQuery = `${query} ${lang.queryAppend}`;
+    const url = [
+      'https://www.googleapis.com/youtube/v3/search',
+      `?part=snippet`,
+      `&maxResults=3`,
+      `&q=${encodeURIComponent(searchQuery)}`,
+      `&key=${YT_KEY}`,
+      `&type=video`,
+      `&relevanceLanguage=${lang.code}`,
+      `&regionCode=${lang.region}`,
+      `&videoDuration=medium`,
+    ].join('');
 
     const res  = await fetch(url, { signal: AbortSignal.timeout(6000) });
     const data = await res.json();
 
     if (data.error) throw new Error(data.error.message);
 
-    return (data.items || []).map((item: any) => ({
-      title:     item.snippet?.title     || 'Legal Video',
-      videoId:   item.id?.videoId        || '',
-      thumbnail: item.snippet?.thumbnails?.high?.url || '',
-    })).filter((v: VideoGuide) => !!v.videoId);
+    return (data.items || [])
+      .map((item: any) => ({
+        title:     item.snippet?.title     || 'Legal Video',
+        videoId:   item.id?.videoId        || '',
+        thumbnail: item.snippet?.thumbnails?.high?.url || '',
+      }))
+      .filter((v: VideoGuide) => !!v.videoId);
   } catch {
     return [];
   }
