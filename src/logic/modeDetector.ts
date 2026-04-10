@@ -1,68 +1,120 @@
 /**
- * modeDetector.ts
+ * modeDetector.ts — FINAL RELEASE
  *
- * MULTI-ENGINE MODE DETECTOR
- * Returns one of 3 modes:
- *   'ipc'        → IPC section queries ("IPC 127", "420", "section 302")
- *   'knowledge'  → General legal knowledge ("What is...", "Explain", constitution, CRPC)
- *   'case'       → Personal legal situations ("my land", "my brother", "I was arrested")
+ * STRICT PRIORITY ORDER:
+ *   1. CASE  — personal situation signals ("my", "I was", "my brother")
+ *   2. IPC   — explicit IPC/section references ("IPC 302", "section 420")
+ *   3. KNOWLEDGE — everything else
+ *
+ * CRITICAL RULE: Case signals ALWAYS win, even if query also mentions IPC.
+ * Reason: "My brother used IPC against me" is a CASE, not an IPC lookup.
  */
 
-export type AgentMode = 'ipc' | 'knowledge' | 'case';
+export type AgentMode = 'greeting' | 'casual' | 'ipc' | 'knowledge' | 'case';
 
-// ─── IPC patterns ────────────────────────────────────────────────────────────
-const IPC_PATTERNS = [
+// ─── CASE SIGNALS — personal situation indicators ─────────────────────────────
+// These MUST win over all other patterns (highest priority)
+const CASE_SIGNALS: RegExp[] = [
+  // Personal pronouns + possessives
+  /\bmy\b/i,
+  /\bi\s+(am|was|have|had|got|want|need|did|cannot|can't|don't)\b/i,
+  /\bme\b/i,
+  /\bhelp me\b/i,
+  /\bwhat should i\b/i,
+
+  // Family members
+  /\bmy (brother|sister|father|mother|wife|husband|son|daughter|uncle|aunt|cousin|relative|family|neighbour|neighbor|landlord|tenant)\b/i,
+
+  // Property personal
+  /\bmy (land|property|house|home|flat|plot|farm|shop|building|room)\b/i,
+
+  // Employment personal
+  /\bmy (job|salary|wages|office|employer|company|boss|manager|colleague)\b/i,
+
+  // Legal situation personal
+  /\b(arrested|detained|threatened|beaten|cheated|harassed|fired|terminated|evicted|assaulted|abused|stalked|blackmailed)\b/i,
+  /\b(fir against me|case against me|notice to me|summons|complain against)\b/i,
+  /\b(bail|anticipatory bail|police came|police took)\b/i,
+
+  // Dispute signals
+  /\b(dispute|fight|conflict|problem with|issue with|trouble with|neighbour took|someone took|they took|he took|she took)\b/i,
+  /\b(illegally|without permission|without consent|taking my|occupying my|encroached|encroachment)\b/i,
+];
+
+// ─── IPC PATTERNS — only when NO personal signal above ───────────────────────
+const IPC_PATTERNS: RegExp[] = [
   /\bipc\b/i,
   /\bindian penal code\b/i,
   /\bsection\s+\d+/i,
   /\bipc[\s-]*\d+/i,
+  /^\d+[a-z]?\s*(explain|define|meaning|what|tell)?$/i,  // bare number like "420"
 ];
 
-// ─── Knowledge starters ──────────────────────────────────────────────────────
-const KNOWLEDGE_STARTERS = [
-  'what', 'explain', 'define', 'describe', 'tell me', 'how does',
-  'what is', 'what are', 'meaning', 'meaning of', 'difference between',
-  'elaborate', 'clarify',
+// ─── KNOWLEDGE STARTERS ───────────────────────────────────────────────────────
+const KNOWLEDGE_STARTERS: string[] = [
+  'what is', 'what are', 'explain ', 'define ', 'describe ', 'tell me about',
+  'how does', 'meaning of', 'difference between', 'elaborate', 'clarify',
+  'what do you mean', 'give me information',
 ];
 
-// ─── Knowledge content keywords ──────────────────────────────────────────────
-const KNOWLEDGE_CONTENT_KEYWORDS = [
+const KNOWLEDGE_KEYWORDS: string[] = [
   'article', 'constitution', 'constitutional', 'fundamental right',
-  'directive principle', 'preamble', 'crpc', 'criminal procedure',
-  'bare act', 'provision', 'law', 'act', 'territory', 'india',
+  'directive principle', 'preamble', 'crpc', 'criminal procedure code',
   'parliament', 'supreme court', 'high court', 'judiciary',
-  'rights', 'citizenship', 'amendment',
+  'citizenship', 'amendment', 'bharat', 'territory of india',
+  'right to', 'freedom of',
 ];
 
-// ─── Case signal words (personal situation) ──────────────────────────────────
-const CASE_KEYWORDS = [
-  'my ', 'me ', ' me', ' i ', ' i\'', 'i am', 'i was', 'i have',
-  'my brother', 'my sister', 'my father', 'my mother', 'my wife', 'my husband',
-  'my land', 'my property', 'my house', 'my job', 'my salary',
-  'i got', 'i need', 'i want', 'help me', 'what should i',
-  'someone', 'neighbour', 'dispute', 'problem', 'issue', 'fight',
-  'harassment', 'cheated', 'fraud on me', 'stolen', 'beaten',
-  'terminated', 'fired', 'arrested', 'bail', 'fir against',
-];
+// ─── GREETING words ───────────────────────────────────────────────────────────────────
+const GREETINGS = new Set([
+  'hi', 'hello', 'hey', 'hii', 'helo', 'heyy', 'hai', 'sup', 'yo',
+  'hi there', 'hello there', 'good morning', 'good evening', 'good afternoon',
+  'greetings', 'howdy', 'namaste', 'vanakkam', 'salaam',
+]);
 
+// ─── CASUAL / acknowledgement words ────────────────────────────────────────────────────
+const CASUALS = new Set([
+  'ok', 'okay', 'k', 'ok', 'fine', 'sure', 'alright',
+  'thanks', 'thank you', 'thankyou', 'ty', 'thx', 'thank u',
+  'got it', 'noted', 'understood', 'yes', 'no', 'nope', 'yep', 'yeah',
+  'cool', 'great', 'nice', 'good', 'perfect', 'wow', 'amazing',
+  'bye', 'goodbye', 'see you', 'cya', 'later',
+]);
+
+// ─── MAIN DETECTOR ───────────────────────────────────────────────────────────────────
 export const detectMode = (query: string): AgentMode => {
   const q = query.toLowerCase().trim();
 
-  // ── 1. IPC ENGINE: explicit IPC / section reference ──
-  if (IPC_PATTERNS.some((p) => p.test(q))) return 'ipc';
+  // ══════════════════════════════════════════════════
+  // STEP 0a — GREETING (highest priority)
+  // Short social messages must NEVER trigger legal engines
+  // ══════════════════════════════════════════════════
+  if (GREETINGS.has(q)) return 'greeting';
 
-  // ── 2. Bare section number (e.g. "420", "302 explain") ──
-  if (/^\d+[a-z]?\s*(explain|define|meaning|what|tell)?$/i.test(q)) return 'ipc';
+  // ══════════════════════════════════════════════════
+  // STEP 0b — CASUAL / acknowledgement
+  // ok / thanks / got it / bye — never legal
+  // ══════════════════════════════════════════════════
+  if (CASUALS.has(q)) return 'casual';
 
-  // ── 3. CASE ENGINE: personal situation signals ──
-  if (CASE_KEYWORDS.some((kw) => q.includes(kw))) return 'case';
+  // ══════════════════════════════════════════════════
+  // STEP 1 — CASE ENGINE (personal situation signals)
+  // ══════════════════════════════════════════════════
+  if (CASE_SIGNALS.some(pattern => pattern.test(query))) return 'case';
 
-  // ── 4. KNOWLEDGE ENGINE: what/explain starters ──
-  if (KNOWLEDGE_STARTERS.some((kw) => q.startsWith(kw) || q.includes(kw))) return 'knowledge';
+  // ══════════════════════════════════════════════════
+  // STEP 2 — IPC ENGINE (explicit section reference)
+  // ══════════════════════════════════════════════════
+  if (IPC_PATTERNS.some(pattern => pattern.test(q))) return 'ipc';
 
-  // ── 5. Knowledge content keywords (constitution / article / crpc) ──
-  if (KNOWLEDGE_CONTENT_KEYWORDS.some((kw) => q.includes(kw))) return 'knowledge';
+  // ══════════════════════════════════════════════════
+  // STEP 3 — KNOWLEDGE ENGINE
+  // ══════════════════════════════════════════════════
+  if (KNOWLEDGE_STARTERS.some(kw => q.startsWith(kw) || q.includes(kw))) return 'knowledge';
+  if (KNOWLEDGE_KEYWORDS.some(kw => q.includes(kw))) return 'knowledge';
 
-  // ── 6. Default → knowledge (never fail, always answer) ──
+  // ══════════════════════════════════════════════════
+  // STEP 4 — DEFAULT: knowledge (never fail)
+  // ══════════════════════════════════════════════════
   return 'knowledge';
 };

@@ -155,6 +155,71 @@ export function extractSectionNumber(query: string): string | null {
   return null;
 }
 
+// ─── IPC Section Validator (1–511 only) ──────────────────────────────────────
+export function validateIPCSection(sectionStr: string): {
+  valid: boolean;
+  number: number | null;
+  message?: string;
+} {
+  // Strip any trailing letter (e.g. "498A" → 498)
+  const numPart = parseInt(sectionStr.replace(/[a-z]+$/i, ''), 10);
+
+  if (isNaN(numPart)) {
+    return { valid: false, number: null, message: 'Not a valid section number.' };
+  }
+  if (numPart < 1 || numPart > 511) {
+    return {
+      valid: false,
+      number: numPart,
+      message: `IPC Section ${numPart} does not exist. The Indian Penal Code contains sections 1 to 511 only.`,
+    };
+  }
+  return { valid: true, number: numPart };
+}
+
+// ─── Build Invalid Section Error Report ──────────────────────────────────────
+function buildInvalidIPCReport(sectionStr: string, numPart: number | null): LegalReport {
+  const label = numPart !== null ? `Section ${sectionStr}` : `"${sectionStr}"`;
+  return {
+    caseType: 'IPC_INVALID',
+    legalArea: 'Indian Penal Code 1860',
+    riskLevel: 'Low',
+    riskScore: 0,
+    summary: `IPC ${label} does not exist in the Indian Penal Code.`,
+    reasoning: [
+      'The Indian Penal Code 1860 contains sections numbered 1 to 511 only.',
+      numPart !== null && numPart > 511
+        ? `Section ${numPart} exceeds the maximum valid section (511).`
+        : `Please verify the section number and try again.`,
+    ].filter(Boolean) as string[],
+    riskFactors: [],
+    actions: [
+      'Check the section number again — IPC has sections 1 to 511.',
+      'Try one of the common sections: IPC 302, IPC 420, IPC 354, or IPC 498A.',
+    ],
+    nextSteps: [],
+    warnings: [
+      'Do not rely on unverified section numbers — always confirm before legal proceedings.',
+    ],
+    knowledge: {
+      title: `⚠️ Invalid IPC Section — ${label}`,
+      category: 'Indian Penal Code 1860',
+      summary: `IPC ${label} does not exist. The IPC has sections 1 to 511 only.`,
+      explanation: `The Indian Penal Code 1860 (IPC) is the main criminal statute of India. It was enacted by the British and contains exactly 511 sections (with some sub-sections like 498A). Sections beyond 511 do not exist in the IPC. If you are looking for a specific offense, please check the section number carefully.`,
+      punishment: 'N/A — This section does not exist.',
+      simpleExplanation: `There is no IPC Section ${sectionStr}. The IPC only goes up to Section 511. Please check the number and try again.`,
+      keyPoints: [
+        '✅ IPC 302 — Murder (Death / Life Imprisonment)',
+        '✅ IPC 420 — Cheating (Up to 7 years)',
+        '✅ IPC 379 — Theft (Up to 3 years)',
+        '✅ IPC 376 — Rape (Minimum 10 years)',
+        '✅ IPC 498A — Cruelty to wife (Up to 3 years)',
+        '✅ IPC 354 — Assault on woman (1–5 years)',
+      ],
+    },
+  };
+}
+
 // ─── Detect if query is for constitution ─────────────────────────────────────
 function isConstitutionQuery(query: string): boolean {
   const q = query.toLowerCase();
@@ -185,7 +250,7 @@ export function buildKnowledgeReport(
     reasoning: [knowledge.explanation],
     riskFactors: [],
     actions: [],
-    nextSteps: ['Refer to the Bare Act for a complete reading of sub-clauses and exceptions.'],
+    nextSteps: [],
     warnings: [],
     knowledge,
   };
@@ -350,34 +415,71 @@ export function handleKnowledgeQuery(query: string): LegalReport {
 
 // ─── IPC-specific handler (called when mode = 'ipc') ─────────────────────────
 export function handleIPCQuery(query: string): LegalReport {
-  const ipcResult = runIPCEngine(query);
-  if (ipcResult) return ipcResult;
-
-  // Even for explicit IPC mode queries that don't match — use smart fallback
   const sectionNum = extractSectionNumber(query);
-  const title = sectionNum ? `IPC Section ${sectionNum}` : `IPC Query: ${query.slice(0, 40)}`;
 
-  const fallback: LegalKnowledge = {
-    title,
+  // ── Step 1: Validate the section number ──
+  if (sectionNum) {
+    const validation = validateIPCSection(sectionNum);
+
+    if (!validation.valid) {
+      // Return clear error — DO NOT hallucinate section details
+      return buildInvalidIPCReport(sectionNum, validation.number);
+    }
+  }
+
+  // ── Step 2: Try inline DB first ──
+  if (sectionNum) {
+    const inline = IPC_INLINE[sectionNum.toLowerCase()];
+    if (inline) return buildKnowledgeReport(inline, 'IPC Inline DB');
+  }
+
+  // ── Step 3: Try full CSV database ──
+  if (sectionNum) {
+    const csvMatch = lookupIPCSection(sectionNum);
+    if (csvMatch) return buildKnowledgeReport(csvMatch, 'IPC CSV Engine');
+  }
+
+  // ── Step 4: Section exists in range (1–511) but not in our DB ──
+  // Show honest "section exists but details unavailable" — NOT hallucinated content
+  if (sectionNum) {
+    const num = parseInt(sectionNum, 10);
+    const rangeNote = (!isNaN(num) && num >= 1 && num <= 511)
+      ? `IPC Section ${sectionNum} is a valid section (within 1–511) but our database does not have its complete details yet.`
+      : null;
+
+    if (rangeNote) {
+      const honest: LegalKnowledge = {
+        title: `IPC Section ${sectionNum}`,
+        category: 'Criminal Law / IPC',
+        summary: rangeNote,
+        explanation: `IPC Section ${sectionNum} exists within the Indian Penal Code (sections 1–511). Our current database does not have the complete inline data for this specific section. For the exact legal text, please consult: (1) The official Bare Act, (2) India Code – indiacode.nic.in, or (3) A qualified criminal lawyer.`,
+        punishment: 'Please refer to the official IPC text or consult a lawyer for this section.',
+        simpleExplanation: `Section ${sectionNum} is part of the IPC (which has 511 sections), but we cannot show full details without risking inaccurate information. Always verify with an official or lawyer.`,
+        keyPoints: [
+          `Section ${sectionNum} is within the valid IPC range (1–511)`,
+          'For accurate details, check indiacode.nic.in or consult a lawyer',
+          'Try common sections: IPC 302, 420, 379, 354, 498A',
+        ],
+      };
+      return buildKnowledgeReport(honest, 'IPC Validated-Honest');
+    }
+  }
+
+  // ── Step 5: No section number found — general IPC query ──
+  const general: LegalKnowledge = {
+    title: 'Indian Penal Code 1860 — Overview',
     category: 'Criminal Law / IPC',
-    summary: sectionNum
-      ? `IPC Section ${sectionNum} is part of the Indian Penal Code 1860.`
-      : `This appears to be an IPC-related query under the Indian Penal Code 1860.`,
-    explanation: sectionNum
-      ? `IPC Section ${sectionNum}: The Indian Penal Code 1860 contains offenses and their punishments. Section ${sectionNum} deals with a specific offense. For the exact text, please refer to the Bare Act or consult a lawyer.`
-      : `The Indian Penal Code 1860 (IPC) is the principal criminal code of India. It was enacted during British India and still governs most criminal offenses. It covers offenses against persons, property, the state, public tranquility, and more.`,
-    punishment: 'Refer to the IPC Bare Act for the exact punishment for this section.',
-    simpleExplanation: sectionNum
-      ? `Section ${sectionNum} of the IPC is one of the many sections that define a crime and its punishment under Indian criminal law.`
-      : `The IPC is India's main criminal law. It lists different crimes and their punishments.`,
+    summary: 'The IPC is India\'s primary criminal law containing 511 sections.',
+    explanation: 'The Indian Penal Code 1860 (IPC) is the main criminal statute of India, enacted during the British period. It contains 511 sections covering offenses against the state, public order, body, property, and more. It is supported by the Code of Criminal Procedure 1973 (CrPC). The modern replacement is the Bharatiya Nyaya Sanhita (BNS) 2023.',
+    punishment: 'Varies by offense. Range: fine only → death penalty.',
+    simpleExplanation: 'The IPC is India\'s rulebook for crimes. It lists 511 types of crimes (like theft, murder, fraud) and what happens if you commit them.',
     keyPoints: [
-      'Indian Penal Code enacted in 1860',
-      'Contains 511 sections covering all major crimes',
-      'Supported by the Code of Criminal Procedure (CrPC) 1973',
-      'Bhartiya Nyaya Sanhita (BNS) 2023 is the modern replacement',
-      'Consult a lawyer for accurate interpretation of any section',
+      'IPC has exactly 511 sections (1 to 511)',
+      'IPC 302 — Murder | IPC 420 — Cheating | IPC 379 — Theft',
+      'IPC 376 — Rape | IPC 498A — Cruelty to wife',
+      'CrPC 1973 governs the procedure (arrest, bail, trial)',
+      'Modern replacement: Bharatiya Nyaya Sanhita (BNS) 2023',
     ],
   };
-
-  return buildKnowledgeReport(fallback, 'IPC Fallback');
+  return buildKnowledgeReport(general, 'IPC General');
 }

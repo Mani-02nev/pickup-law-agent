@@ -63,4 +63,29 @@ export interface LegalReport {
   insights?: WebInsight[];
   videos?: VideoGuide[];
   knowledge?: LegalKnowledge;
+  suggestions?: Suggestion[];  // ← smart follow-up buttons
 }
+
+// ─── User Profile ─────────────────────────────────────────────────────────────
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt: string;
+  queryCount: number;
+}
+
+// ─── Smart Suggestions ───────────────────────────────────────────────────────
+export interface Suggestion {
+  label: string;
+  query: string;
+  icon: string;
+}
+
+// ─── Thinking States ─────────────────────────────────────────────────────────
+export type ThinkingState
+  = 'idle'
+  | 'thinking'       // initial "Analyzing..."
+  | 'processing'     // "Evaluating risk factors..."
+  | 'generating';    // "Building your legal report..."
