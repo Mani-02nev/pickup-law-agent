@@ -151,6 +151,14 @@ export const Auth: React.FC = () => {
             </motion.button>
 
             <button
+              onClick={() => navigate('/app', { replace: true, state: { initialQuery } })}
+              className="w-full py-3 px-4 rounded-xl border border-[#1a1a1a] text-zinc-500 text-xs font-bold hover:bg-[#080808] hover:text-white transition-all flex items-center justify-center gap-2"
+            >
+              <User className="w-3.5 h-3.5" />
+              Continue as Guest (No Email Needed)
+            </button>
+
+            <button
               onClick={() => { setView('login'); setError(''); }}
               className="text-[10px] font-black text-zinc-600 hover:text-white uppercase tracking-widest transition-colors"
             >
@@ -255,6 +263,22 @@ export const Auth: React.FC = () => {
               : isLogin ? 'Login' : 'Create Account'}
           </motion.button>
         </form>
+
+        <div className="space-y-4">
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-[#1a1a1a]"></div>
+            <span className="flex-shrink mx-4 text-[9px] font-black text-zinc-800 uppercase tracking-widest">OR</span>
+            <div className="flex-grow border-t border-[#1a1a1a]"></div>
+          </div>
+
+          <button
+            onClick={() => navigate('/app', { replace: true, state: { initialQuery } })}
+            className="w-full py-3 px-4 rounded-xl border border-[#1a1a1a] text-zinc-500 text-xs font-bold hover:bg-[#080808] hover:text-white transition-all flex items-center justify-center gap-2"
+          >
+            <User className="w-3.5 h-3.5" />
+            Continue as Guest (No Email Needed)
+          </button>
+        </div>
 
         {/* Helper text */}
         {!isLogin && (
