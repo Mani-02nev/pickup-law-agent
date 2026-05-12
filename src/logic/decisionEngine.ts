@@ -228,6 +228,47 @@ function resolveEmploymentCase(answers: Record<string, string>, score: number, r
   return { summary: applyTone(summary, role), reasoning, riskFactors, actions, warnings };
 }
 
+// ─── Consumer Case ────────────────────────────────────────────────────────────
+function resolveConsumerCase(answers: Record<string, string>, score: number, role: UserRole) {
+  const reasoning: string[]   = [];
+  const riskFactors: string[] = [];
+  const actions: string[]     = [];
+  const warnings: string[]    = [];
+  let summary = '';
+  const issue = answers['consumer_issue'];
+
+  if (issue === 'ticket' || issue === 'mrp') {
+    summary = 'Refusal to tender exact change or charging above MRP is an unfair trade practice and deficiency in service under the Consumer Protection Act 2019.';
+    reasoning.push('Under Section 2(47) of the Consumer Protection Act 2019, unfair trade practices include deceptive pricing or refusing exact change.');
+    reasoning.push('For bus conductors, motor vehicle rules of respective states mandate providing exact change or writing the balance on the ticket.');
+    actions.push('File a complaint with the State Transport Authority (for buses) or the National Consumer Helpline (1915).');
+    actions.push('Send a written complaint via email to the grievance officer of the transport corporation or company.');
+  } else if (issue === 'defective') {
+    summary = 'Selling defective goods makes the seller/manufacturer liable for replacement or refund under the Consumer Protection Act.';
+    reasoning.push('Section 2(10) defines "defect" as any fault, imperfection, or shortcoming in the quality or standard of goods.');
+    actions.push('Send a formal legal notice demanding a replacement or full refund within 15 days.');
+    actions.push('File a complaint with the District Consumer Disputes Redressal Commission if the amount is up to ₹50 Lakhs.');
+  } else if (issue === 'food') {
+    summary = 'Serving adulterated or poor-quality food is a violation of both the Consumer Protection Act and FSSAI regulations.';
+    reasoning.push('The Food Safety and Standards Authority of India (FSSAI) penalizes substandard or unsafe food under Section 59 of the FSS Act.');
+    actions.push('Register a grievance on the FSSAI Food Safety Connect portal.');
+    actions.push('Lodge a complaint on the National Consumer Helpline app or portal (consumerhelpline.gov.in).');
+  } else {
+    summary = 'Consumer disputes are strongly protected under Indian law to ensure fair trade and service standards.';
+    reasoning.push('The Consumer Protection Act 2019 provides a 3-tier quasi-judicial mechanism (District, State, National) for speedy redressal.');
+    actions.push('Call the National Consumer Helpline (NCH) at 1915 or register a grievance online.');
+  }
+
+  if (answers['has_proof'] === 'no') {
+    riskFactors.push('No proof of transaction (ticket/bill) weakens the legal claim significantly.');
+    warnings.push('Always demand and retain a GST bill, ticket, or digital payment receipt as primary evidence of the transaction.');
+  } else {
+    reasoning.push('Your bill/ticket establishes the "consumer" relationship, fulfilling Section 2(7) requirements of the CPA 2019.');
+  }
+
+  return { summary: applyTone(summary, role), reasoning, riskFactors, actions, warnings };
+}
+
 // ─── Main generateDecision ────────────────────────────────────────────────────
 export const generateDecision = (
   category: LegalCategory,
@@ -248,6 +289,8 @@ export const generateDecision = (
       resolved = resolveFamilyCase(answers, score, role); break;
     case 'employment_case':
       resolved = resolveEmploymentCase(answers, score, role); break;
+    case 'consumer_case':
+      resolved = resolveConsumerCase(answers, score, role); break;
     default:
       resolved = resolvePropertyCase(answers, score, role);
   }
@@ -257,6 +300,7 @@ export const generateDecision = (
     criminal_case:   'Criminal Law / CrPC',
     family_case:     'Family & Personal Law',
     employment_case: 'Labour & Employment Law',
+    consumer_case:   'Consumer Protection Law',
     unknown:         'General Legal Matter',
   };
 

@@ -50,6 +50,12 @@ const CASE_SUGGESTIONS: Record<LegalCategory, Suggestion[]> = {
     { icon: '🚫', label: 'Wrongful termination',   query: 'What are my rights after wrongful termination?' },
     { icon: '🤝', label: 'Gratuity rights',         query: 'What is my entitlement to gratuity?' },
   ],
+  consumer_case: [
+    { icon: '🛒', label: 'Consumer Rights',        query: 'What are my basic consumer rights in India?' },
+    { icon: '🛍️', label: 'File Consumer Complaint',query: 'How do I file a consumer court complaint?' },
+    { icon: '🚌', label: 'Transport Rules',        query: 'What are the rules for bus conductors and exact change?' },
+    { icon: '📬', label: 'Legal Notice Process',   query: 'How to send a legal notice to a company?' },
+  ],
   unknown: [
     { icon: '⚖️', label: 'IPC basics',             query: 'Explain the most important IPC sections' },
     { icon: '🏛️', label: 'Constitutional rights',   query: 'What are my fundamental rights under the Constitution?' },

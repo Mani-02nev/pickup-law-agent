@@ -20,7 +20,7 @@ function defaultProfile(email: string, id: string): UserProfile {
     id,
     name,
     email,
-    role: 'Lawyer',
+    role: 'Law_Student',
     createdAt: new Date().toISOString(),
     queryCount: 0,
   };
@@ -32,7 +32,28 @@ export function useUserProfile() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) { setLoading(false); return; }
+      if (!session?.user) {
+        // Create/load a Guest profile from local storage
+        try {
+          const cached = localStorage.getItem(STORAGE_KEY + '_guest');
+          if (cached) {
+            setProfile(JSON.parse(cached) as UserProfile);
+          } else {
+            const guestProfile: UserProfile = {
+              id: 'guest',
+              name: 'Guest',
+              email: '',
+              role: 'Law_Student',
+              createdAt: new Date().toISOString(),
+              queryCount: 0,
+            };
+            localStorage.setItem(STORAGE_KEY + '_guest', JSON.stringify(guestProfile));
+            setProfile(guestProfile);
+          }
+        } catch {}
+        setLoading(false);
+        return;
+      }
 
       const user = session.user;
       // Try local cache first (instant load)
@@ -53,7 +74,10 @@ export function useUserProfile() {
   }, []);
 
   function saveProfile(p: UserProfile) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); } catch {}
+    try { 
+      const key = p.id === 'guest' ? STORAGE_KEY + '_guest' : STORAGE_KEY;
+      localStorage.setItem(key, JSON.stringify(p)); 
+    } catch {}
     setProfile(p);
   }
 

@@ -21,6 +21,9 @@ const CASE_SIGNALS: RegExp[] = [
   /\bme\b/i,
   /\bhelp me\b/i,
   /\bwhat should i\b/i,
+  // Tanglish/Tamil personal pronouns
+  /\b(na|naan|enakku|ennoda|ennaku|enga|engaloda|en)\b/i,
+  /\b(kudukka|thara|pannumbothu|illa-na)\b/i,
 
   // Family members
   /\bmy (brother|sister|father|mother|wife|husband|son|daughter|uncle|aunt|cousin|relative|family|neighbour|neighbor|landlord|tenant)\b/i,

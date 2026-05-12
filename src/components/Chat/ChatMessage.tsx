@@ -18,6 +18,35 @@ interface ChatMessageProps {
   onContinue?: () => void;
 }
 
+// ─── Typewriter Effect ───────────────────────────────────────────────────────
+const TypewriterText: React.FC<{ text: string; delayMs?: number }> = ({ text, delayMs = 0 }) => {
+  const [display, setDisplay] = React.useState('');
+  
+  React.useEffect(() => {
+    let i = 0;
+    setDisplay('');
+    let timer: any;
+    
+    const timeout = setTimeout(() => {
+      timer = setInterval(() => {
+        if (i < text.length) {
+          setDisplay((prev) => prev + text.charAt(i));
+          i++;
+        } else {
+          clearInterval(timer);
+        }
+      }, 15);
+    }, delayMs);
+
+    return () => {
+      clearTimeout(timeout);
+      if (timer) clearInterval(timer);
+    };
+  }, [text, delayMs]);
+
+  return <span>{display}</span>;
+};
+
 // ─── role tone labels ────────────────────────────────────────────────────────
 const ROLE_LABELS: Record<UserRole, string> = {
   Advocate:    'Strategic Assessment',
@@ -155,11 +184,17 @@ const KnowledgeCard: React.FC<{
           </div>
           {userRole === 'Law_Student' ? (
             <div className="space-y-2">
-              <p className="text-sm text-zinc-200 leading-relaxed">{knowledge.simpleExplanation}</p>
-              <p className="text-[11px] text-zinc-600 italic">💡 Think of it this way: {knowledge.simpleExplanation.split('.')[0]}.</p>
+              <p className="text-sm text-zinc-200 leading-relaxed">
+                <TypewriterText text={knowledge.simpleExplanation} />
+              </p>
+              <p className="text-[11px] text-zinc-600 italic">
+                💡 Think of it this way: <TypewriterText text={knowledge.simpleExplanation.split('.')[0] + '.'} delayMs={knowledge.simpleExplanation.length * 15} />
+              </p>
             </div>
           ) : (
-            <p className="text-sm text-zinc-200 leading-relaxed">{knowledge.explanation}</p>
+            <p className="text-sm text-zinc-200 leading-relaxed">
+              <TypewriterText text={knowledge.explanation} />
+            </p>
           )}
         </div>
         <PunishmentBlock punishment={knowledge.punishment} />
@@ -171,7 +206,9 @@ const KnowledgeCard: React.FC<{
           <div className="flex items-center gap-2 text-[10px] font-black text-yellow-600 uppercase tracking-widest">
             <Brain className="w-3.5 h-3.5" />🧠 In Simple Words
           </div>
-          <p className="text-sm text-yellow-200/90 leading-relaxed">{knowledge.simpleExplanation}</p>
+          <p className="text-sm text-yellow-200/90 leading-relaxed">
+            <TypewriterText text={knowledge.simpleExplanation} delayMs={knowledge.explanation.length * 15} />
+          </p>
         </div>
       )}
 
@@ -253,7 +290,9 @@ const CaseReportCard: React.FC<{
           <h3 className="text-xl font-black uppercase tracking-tighter">{result.legalArea}</h3>
           <div className="border-t border-[#1a1a1a]" />
           <Section title="📌 Summary">
-            <p className="text-sm text-zinc-300 leading-relaxed">{result.summary}</p>
+            <p className="text-sm text-zinc-300 leading-relaxed">
+              <TypewriterText text={result.summary} />
+            </p>
           </Section>
         </div>
       </div>
@@ -458,7 +497,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({ role, content, userRol
       <div className="flex-1 min-w-0">
         {!result ? (
           <div className="text-[15px] text-zinc-200 leading-relaxed font-medium">
-            {content as string}
+            <TypewriterText text={content as string} />
           </div>
         ) : result.caseType === 'IPC_INVALID' ? (
           <InvalidIPCCard result={result} />

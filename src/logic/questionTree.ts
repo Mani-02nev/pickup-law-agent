@@ -137,6 +137,31 @@ export const QUESTION_TREES: Record<LegalCategory, QuestionNode[]> = {
     },
   ],
 
+  // ─── CONSUMER CASE ─────────────────────────────────────────────────────────
+  consumer_case: [
+    {
+      id: 'cons1',
+      text: 'What type of consumer issue are you facing?',
+      field: 'consumer_issue',
+      options: [
+        { label: '🛍️ Defective Product / Service', value: 'defective', score: 10, nextStep: 'cons2' },
+        { label: '🚌 Ticket / Balance Issue', value: 'ticket', score: 5, nextStep: 'cons2' },
+        { label: '🛒 Overcharging / MRP', value: 'mrp', score: 10, nextStep: 'cons2' },
+        { label: '🍽️ Food / Delivery Issue', value: 'food', score: 5, nextStep: 'cons2' },
+      ],
+    },
+    {
+      id: 'cons2',
+      text: 'Do you have a bill, ticket, or proof of payment?',
+      field: 'has_proof',
+      options: [
+        { label: '✅ Yes, I have the bill/ticket', value: 'yes', nextStep: 'END' },
+        { label: '📸 I have a photo / digital proof', value: 'digital', nextStep: 'END' },
+        { label: '❌ No proof available', value: 'no', score: 20, nextStep: 'END' },
+      ],
+    },
+  ],
+
   // ─── UNKNOWN (safe fallback) ─────────────────────────────────────────────────
   unknown: [
     {

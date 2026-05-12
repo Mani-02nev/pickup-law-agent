@@ -15,7 +15,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 import { motion } from 'framer-motion';
-import { Gavel, Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
+import logo from '../logo/PickUp.png';
 
 type CallbackState = 'loading' | 'success' | 'expired' | 'error';
 
@@ -89,7 +90,7 @@ export const AuthCallback: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full p-12 bg-black border border-[#1F1F1F] rounded-2xl shadow-2xl space-y-8 text-center"
       >
-        <Gavel className="w-14 h-14 text-white mx-auto" />
+        <img src={logo} alt="PickUp Law" className="w-16 h-16 object-contain mx-auto" />
         <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
           PickUp Law Agent
         </h2>

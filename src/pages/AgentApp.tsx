@@ -5,7 +5,7 @@ import {
   Gavel, Plus, LogOut, ChevronRight,
   Globe, Youtube, MessageSquare, History, Trash2, Clock,
   Zap, BookOpen, Scale, GraduationCap, Briefcase, User,
-  ChevronDown, Sparkles
+  ChevronDown, Sparkles, Settings
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '../utils/supabase';
@@ -19,6 +19,7 @@ import { fetchWebInsights, fetchYouTubeVideos, CONTENT_LANGUAGES, DEFAULT_LANGUA
 import { generateSuggestions } from '../logic/suggestions';
 import { LegalReport, ChatState, LegalCategory, UserRole, ThinkingState, Suggestion } from '../logic/types';
 import { ChatMessage, AgentStatusBar, TypingIndicator } from '../components/Chat/ChatMessage';
+import logo from '../logo/PickUp.png';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -64,11 +65,11 @@ export const AgentApp: React.FC = () => {
   const location = useLocation();
   const { profile, updateName, updateRole, incrementQuery } = useUserProfile();
 
-  const [role, setRole]               = useState<UserRole>('Lawyer');
+  const [role, setRole]               = useState<UserRole>('Law_Student');
   const [messages, setMessages]       = useState<Message[]>([]);
   const [input, setInput]             = useState('');
   const [mode, setMode]               = useState<AgentMode | null>(null);
-  const [chatState, setChatState]     = useState<ChatState>(DEFAULT_CHAT_STATE('Lawyer'));
+  const [chatState, setChatState]     = useState<ChatState>(DEFAULT_CHAT_STATE('Law_Student'));
   const [thinkingState, setThinkingState] = useState<ThinkingState>('idle');
   const [exploreMode, setExploreMode] = useState(false);
   const [history, setHistory]         = useState<SessionRecord[]>([]);
@@ -81,6 +82,7 @@ export const AgentApp: React.FC = () => {
   const [nameInput, setNameInput]     = useState('');
   const [videoLang, setVideoLang]     = useState<ContentLanguage>(DEFAULT_LANGUAGE);
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -92,12 +94,8 @@ export const AgentApp: React.FC = () => {
     if (profile) { setRole(profile.role); setChatState(DEFAULT_CHAT_STATE(profile.role)); }
   }, [profile?.role]);
 
-  // Auth guard
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) navigate('/auth');
-    });
-  }, []);
+  // Auth check (allow guests up to 2 queries)
+  const isGuest = profile?.id === 'guest';
 
   // Quick-query event from InvalidIPCCard suggestion buttons
   useEffect(() => {
@@ -114,29 +112,58 @@ export const AgentApp: React.FC = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, thinkingState]);
 
-  // Initial query from landing
+  // Initialization: Load history and latest session
   useEffect(() => {
-    const q = (location.state as any)?.initialQuery;
-    addAgentGreeting();
-    if (q) setTimeout(() => handleSend(q), 700);
-  }, []);
+    let loadedRecent = false;
+    try {
+      const s = localStorage.getItem('pl_history');
+      if (s) {
+        let parsed = JSON.parse(s) as SessionRecord[];
+        parsed = parsed.filter(h => h.messages && h.messages.length >= 2 && h.label !== 'Session' && h.label !== 'New Query');
+        setHistory(parsed);
+        localStorage.setItem('pl_history', JSON.stringify(parsed));
 
-  // Load history
-  useEffect(() => {
-    try { const s = localStorage.getItem('pl_history'); if (s) setHistory(JSON.parse(s)); } catch {}
+        if (parsed.length > 0 && !(location.state as any)?.initialQuery) {
+          const latest = parsed[0];
+          setSessionId(latest.id);
+          setMessages(latest.messages);
+          setMode(latest.mode);
+          loadedRecent = true;
+        }
+      }
+    } catch {}
+
+    if (!loadedRecent) {
+      const q = (location.state as any)?.initialQuery;
+      addAgentGreeting();
+      if (q) setTimeout(() => handleSend(q), 700);
+    }
   }, []);
 
   // Save session
   useEffect(() => {
     if (messages.length < 2) return;
     const first = messages.find(m => m.role === 'user');
-    const label = first ? (typeof first.content === 'string' ? first.content.slice(0, 50) : 'Legal Analysis') : 'Session';
+    const label = first ? (typeof first.content === 'string' ? first.content.slice(0, 40) + '...' : 'Legal Analysis') : 'New Query';
     const record: SessionRecord = { id: sessionId, label, mode, messages, createdAt: Date.now() };
     setHistory(prev => {
       const updated = [record, ...prev.filter(h => h.id !== sessionId)].slice(0, 20);
       try { localStorage.setItem('pl_history', JSON.stringify(updated)); } catch {}
       return updated;
     });
+
+    if (profile && profile.id !== 'guest') {
+      supabase.from('sessions').upsert({
+        id: sessionId,
+        user_id: profile.id,
+        label,
+        mode: mode || 'unknown',
+        messages,
+        created_at: new Date(record.createdAt).toISOString()
+      }).then(({ error }) => {
+        if (error) console.error('Supabase sync error:', error);
+      });
+    }
   }, [messages]);
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -147,11 +174,12 @@ export const AgentApp: React.FC = () => {
   }, []);
 
   function addAgentGreeting() {
+    const capName = profile?.name ? profile.name.split(' ')[0].charAt(0).toUpperCase() + profile.name.split(' ')[0].slice(1) : '';
     setMessages([{
       id: uid(), role: 'agent', ts: Date.now(),
-      content: profile?.name
-        ? `Hello ${profile.name.split(' ')[0]}! I'm your AI legal assistant. Ask me about any IPC section, constitutional article, or describe your legal situation.`
-        : `Hello! I'm your AI legal assistant. Ask me about any IPC section, constitutional article, or describe your legal situation.`,
+      content: capName
+        ? `Hello ${capName} 👋 How can I help you today?`
+        : `Hello 👋 How can I help you today?`,
     }]);
   }
 
@@ -159,9 +187,10 @@ export const AgentApp: React.FC = () => {
     setSessionId(uid()); setMode(null); setChatState(DEFAULT_CHAT_STATE(role));
     setInput(''); setThinkingState('idle'); setActiveTab('chat');
     setShowRolePanel(false); setSuggestions([]);
-    const greeting = firstName
-      ? `Welcome back, ${firstName}! Start a new legal query or describe your situation.`
-      : `Welcome! Start a new legal query or describe your situation.`;
+    const capName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
+    const greeting = capName
+      ? `Hello ${capName} 👋 How can I help you today?`
+      : `Hello 👋 How can I help you today?`;
     setMessages([{ id: uid(), role: 'agent', content: greeting, ts: Date.now() }]);
   }
 
@@ -193,6 +222,12 @@ export const AgentApp: React.FC = () => {
   const handleSend = async (forcedInput?: string) => {
     const userText = forcedInput || input.trim();
     if (!userText || isTyping) return;
+
+    if (profile?.id === 'guest' && profile.queryCount >= 1) {
+      navigate('/auth', { state: { initialQuery: userText } });
+      return;
+    }
+
     setInput('');
     if (!forcedInput) addMsg('user', userText);
     setSuggestions([]);
@@ -213,8 +248,9 @@ export const AgentApp: React.FC = () => {
     // ── GREETING ── human response, no legal engine ──
     if (detectedMode === 'greeting') {
       await delay(350);
-      const name = firstName ? `, ${firstName}` : '';
-      addMsg('agent', `Hi${name}! 👋 I'm your AI legal assistant. You can ask me about any law, IPC section, or describe your legal issue and I'll guide you.`);
+      const capName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
+      const greeting = capName ? `Hello ${capName}! 👋 How can I help you today?` : `Hello! 👋 How can I help you today?`;
+      addMsg('agent', greeting);
       setSuggestions([
         { icon: '⚖️', label: 'Ask about IPC law',       query: 'IPC 302 explain' },
         { icon: '📋', label: 'Describe a legal issue',   query: 'My brother is taking my property illegally' },
@@ -268,12 +304,13 @@ export const AgentApp: React.FC = () => {
       setThinkingState('thinking');
       const category = classifyIntent(userText);
       const label    = category.replace('_case', '').replace('_', ' ');
-      await delay(700);
       setChatState({ step: 1, category, answers: {}, riskScore: 0, isComplete: false, history: [], role });
       setThinkingState('idle');
-      const greeting = firstName
-        ? `${firstName}, this looks like a ${label} matter. Let me ask you a few quick questions to give you the best legal guidance.`
-        : `This looks like a ${label} matter. Let me ask you a few quick questions to give you the best legal guidance.`;
+      const capName  = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
+      const capLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      const greeting = capName
+        ? `${capName}, this looks like a ${capLabel} matter. Let me ask you a few quick questions to give you the best legal guidance.`
+        : `This looks like a ${capLabel} matter. Let me ask you a few quick questions to give you the best legal guidance.`;
       addMsg('agent', greeting);
       addMsg('agent', QUESTION_TREES[category][0].text);
     }
@@ -367,81 +404,14 @@ export const AgentApp: React.FC = () => {
         sidebarOpen ? 'translate-x-0 w-[270px]' : '-translate-x-full lg:translate-x-0 lg:w-[240px]'
       )}>
         <div className="p-5 pb-4 flex items-center justify-between border-b border-[#111]">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shrink-0">
-              <Gavel className="w-3.5 h-3.5 text-black" />
-            </div>
+          <div className="flex items-center gap-3">
+            <img src={logo} alt="PickUp Law" className="w-10 h-10 rounded-lg object-contain bg-black" />
             <span className="font-black text-sm tracking-tighter uppercase">PickUp Law</span>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-zinc-600 hover:text-white p-1">✕</button>
         </div>
 
-        {/* Profile card — editable */}
-        {profile && (
-          <div className="mx-3 mt-3 p-3 bg-[#080808] border border-[#1a1a1a] rounded-xl space-y-2">
-            <div className="flex items-center gap-2.5">
-              {/* Avatar */}
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shrink-0">
-                <span className="text-black font-black text-xs">
-                  {(editingName ? nameInput : profile.name).charAt(0).toUpperCase() || '?'}
-                </span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                {editingName ? (
-                  /* ── Edit mode ── */
-                  <div className="flex items-center gap-1">
-                    <input
-                      autoFocus
-                      value={nameInput}
-                      onChange={e => setNameInput(e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' && nameInput.trim()) {
-                          updateName(nameInput.trim());
-                          setEditingName(false);
-                        }
-                        if (e.key === 'Escape') setEditingName(false);
-                      }}
-                      className="flex-1 bg-transparent border-b border-zinc-600 text-xs font-black text-white outline-none pb-0.5 min-w-0"
-                      placeholder="Your name"
-                      maxLength={30}
-                    />
-                    {/* Save */}
-                    <button
-                      onClick={() => { if (nameInput.trim()) { updateName(nameInput.trim()); setEditingName(false); } }}
-                      className="text-green-400 hover:text-green-300 text-[10px] font-black px-1 shrink-0"
-                      title="Save"
-                    >✓</button>
-                    {/* Cancel */}
-                    <button
-                      onClick={() => setEditingName(false)}
-                      className="text-zinc-600 hover:text-zinc-400 text-[10px] font-black px-1 shrink-0"
-                      title="Cancel"
-                    >✕</button>
-                  </div>
-                ) : (
-                  /* ── View mode ── */
-                  <div className="flex items-center gap-1.5 group/name">
-                    <p className="text-xs font-black text-white truncate">{profile.name}</p>
-                    <button
-                      onClick={() => { setNameInput(profile.name); setEditingName(true); }}
-                      className="opacity-0 group-hover/name:opacity-100 transition-opacity text-zinc-600 hover:text-white"
-                      title="Edit name"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-                <p className="text-[9px] text-zinc-600 font-medium">
-                  {profile.queryCount} queries · {profile.role.replace('_', ' ')}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Profile card — removed as per request to keep sidebar clean */}
 
         <div className="p-3">
           <button onClick={newSession} className="w-full flex items-center justify-center gap-2 py-2.5 border border-[#1a1a1a] hover:border-zinc-700 text-zinc-500 hover:text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all">
@@ -472,6 +442,9 @@ export const AgentApp: React.FC = () => {
         </div>
 
         <div className="p-3 border-t border-[#111]">
+          <button onClick={() => setShowSettings(true)} className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-zinc-600 hover:text-white hover:bg-[#0a0a0a] transition-all text-[10px] font-black uppercase tracking-widest mb-1">
+            <Settings className="w-3.5 h-3.5" /> Settings
+          </button>
           <button onClick={() => supabase.auth.signOut().then(() => navigate('/auth'))} className="w-full flex items-center gap-2 py-2 px-3 rounded-xl text-zinc-600 hover:text-white hover:bg-[#0a0a0a] transition-all text-[10px] font-black uppercase tracking-widest">
             <LogOut className="w-3.5 h-3.5" /> Sign Out
           </button>
@@ -540,8 +513,10 @@ export const AgentApp: React.FC = () => {
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                       className="flex flex-wrap gap-2 justify-start pl-10 pt-2">
                       {(QUESTION_TREES[chatState.category]?.[chatState.step - 1]?.options || []).map((opt, i) => (
-                        <motion.button key={i} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                          onClick={() => handleChoice(opt)} className="interactive-button text-[10px] py-2.5">
+                        <motion.button key={i} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                          onClick={() => handleChoice(opt)} 
+                          disabled={thinkingState !== 'idle' || isTyping}
+                          className="px-4 py-2.5 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#333] hover:border-[#555] text-zinc-200 text-sm font-medium rounded-full transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                           {opt.label}
                         </motion.button>
                       ))}
@@ -561,7 +536,8 @@ export const AgentApp: React.FC = () => {
                         {suggestions.map((s, i) => (
                           <motion.button key={i} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                             onClick={() => handleSuggestionClick(s)}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#1a1a1a] hover:border-zinc-600 text-[10px] font-bold text-zinc-400 hover:text-white transition-all bg-[#060606]">
+                            disabled={isTyping || thinkingState !== 'idle'}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#1a1a1a] hover:border-zinc-600 text-[10px] font-bold text-zinc-400 hover:text-white transition-all bg-[#060606] disabled:opacity-50 disabled:cursor-not-allowed">
                             <span className="text-[12px]">{s.icon}</span>{s.label}
                           </motion.button>
                         ))}
@@ -693,6 +669,100 @@ export const AgentApp: React.FC = () => {
             </p>
           </div>
         </div>
+        {/* ── SETTINGS MODAL ── */}
+        <AnimatePresence>
+          {showSettings && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-md bg-[#050505] border border-[#1a1a1a] rounded-2xl overflow-hidden shadow-2xl">
+                <div className="p-4 border-b border-[#111] flex justify-between items-center bg-[#0a0a0a]">
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+                    <Settings className="w-4 h-4" /> Preferences
+                  </h3>
+                  <button onClick={() => setShowSettings(false)} className="text-zinc-500 hover:text-white transition-colors">✕</button>
+                </div>
+                
+                <div className="p-5 space-y-6">
+                  {/* Profile Name Settings */}
+                  {profile && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-bold text-zinc-200">
+                        <User className="w-4 h-4 text-emerald-400" /> Display Name
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="text" 
+                          value={nameInput || profile.name} 
+                          onChange={e => setNameInput(e.target.value)}
+                          placeholder="Your Name"
+                          className="flex-1 bg-[#0a0a0a] border border-[#111] focus:border-[#333] rounded-xl px-3 py-2 text-xs text-white outline-none"
+                        />
+                        <button 
+                          onClick={() => { if (nameInput) updateName(nameInput); }}
+                          className="px-4 py-2 bg-[#111] hover:bg-[#1a1a1a] text-zinc-300 text-xs font-bold rounded-xl border border-[#222] transition-colors">
+                          Update
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tamil Language Support */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-zinc-200">
+                        <Globe className="w-4 h-4 text-blue-400" /> Tamil Language Mode
+                      </div>
+                      <div className="w-9 h-5 bg-zinc-800 rounded-full relative cursor-not-allowed opacity-60">
+                        <div className="w-3.5 h-3.5 bg-zinc-500 rounded-full absolute top-0.5 left-0.5" />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed bg-[#0a0a0a] p-3 rounded-xl border border-[#111]">
+                      Tamil support requires integration with a live AI backend (like OpenAI or Gemini) to provide flawless translations and eliminate spelling mistakes. Currently, this runs on an offline logic engine.
+                    </p>
+                  </div>
+
+                  {/* Group Chat Feature */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-zinc-200">
+                        <MessageSquare className="w-4 h-4 text-green-400" /> Group Chat Consultations
+                      </div>
+                      <button 
+                        onClick={() => { navigator.clipboard.writeText(window.location.href); alert('Invite link copied!'); }}
+                        className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 rounded-md transition-colors">
+                        Copy Invite Link
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed bg-[#0a0a0a] p-3 rounded-xl border border-[#111]">
+                      Share this session link to invite co-founders, family, or other lawyers to collaborate with you.
+                    </p>
+                  </div>
+
+                  {/* Cloud Sync */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-bold text-zinc-200">
+                        <Zap className="w-4 h-4 text-purple-400" /> Cloud Database Sync
+                      </div>
+                      <div className="text-[9px] font-black uppercase tracking-widest px-2 py-1 bg-green-500/10 text-green-500 border border-green-500/20 rounded-md">
+                        Active
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed bg-[#0a0a0a] p-3 rounded-xl border border-[#111]">
+                      Your sessions are securely backed up to the database when logged in.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 border-t border-[#111] bg-[#0a0a0a]">
+                  <button onClick={() => setShowSettings(false)} className="w-full interactive-button py-3 text-xs">
+                    Save & Close
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );

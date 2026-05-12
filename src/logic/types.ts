@@ -1,6 +1,6 @@
 export type UserRole = 'Advocate' | 'Lawyer' | 'Law_Student' | 'Judge';
 
-export type LegalCategory = 'property_case' | 'criminal_case' | 'family_case' | 'employment_case' | 'unknown';
+export type LegalCategory = 'property_case' | 'criminal_case' | 'family_case' | 'employment_case' | 'consumer_case' | 'unknown';
 
 export interface QuestionOption {
   label: string;

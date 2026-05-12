@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 import { Gavel, Loader2, Mail, Lock, CheckCircle, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import logo from '../logo/PickUp.png';
 
 // ─── Translate raw Supabase errors into friendly messages ────────────────────
 function friendlyError(msg: string): string {
@@ -58,7 +59,7 @@ export const Auth: React.FC = () => {
         password,
         options: {
           // This must match the Site URL + Redirect URL configured in Supabase dashboard
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `https://pickup-law-agent.vercel.app/auth/callback`,
         },
       });
       if (error) throw error;
@@ -79,7 +80,7 @@ export const Auth: React.FC = () => {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: { emailRedirectTo: `https://pickup-law-agent.vercel.app/auth/callback` },
       });
       if (error) throw error;
     } catch (err: any) {
@@ -99,7 +100,7 @@ export const Auth: React.FC = () => {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="max-w-md w-full p-12 bg-black border border-[#1F1F1F] rounded-2xl shadow-2xl space-y-8 text-center"
         >
-          <Gavel className="w-14 h-14 text-white mx-auto" />
+          <img src={logo} alt="PickUp Law" className="w-16 h-16 object-contain mx-auto" />
           <CheckCircle className="w-12 h-12 text-green-400 mx-auto" />
 
           <div className="space-y-3">
@@ -165,7 +166,7 @@ export const Auth: React.FC = () => {
       >
         {/* Header */}
         <div className="text-center space-y-5">
-          <Gavel className="w-14 h-14 text-white mx-auto" />
+          <img src={logo} alt="PickUp Law" className="w-16 h-16 object-contain mx-auto" />
           <div>
             <h2 className="text-4xl font-black text-white uppercase tracking-tighter">GATEWAY</h2>
             <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.3em] mt-2">

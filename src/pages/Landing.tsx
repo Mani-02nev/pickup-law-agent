@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gavel, ArrowRight, Shield, Zap, Scale, ChevronRight, Globe, BookOpen, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import logo from '../logo/PickUp.png';
 
 const TRACKS = [
   { label: 'Property dispute', query: 'My uncle is occupying my fathers property without permission' },
@@ -63,9 +64,7 @@ export const Landing: React.FC = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[#111] bg-black/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <Gavel className="w-4 h-4 text-black" />
-            </div>
+            <img src={logo} alt="PickUp Law" className="w-8 h-8 rounded-lg object-contain" />
             <span className="font-black text-lg tracking-tighter uppercase">PickUp Law</span>
           </div>
           <div className="flex items-center gap-4">
@@ -251,9 +250,7 @@ export const Landing: React.FC = () => {
       <footer className="py-12 border-t border-[#111] px-6">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center">
-              <Gavel className="w-3 h-3 text-black" />
-            </div>
+            <img src={logo} alt="PickUp Law" className="w-6 h-6 rounded-md object-contain" />
             <span className="font-black text-sm tracking-tighter uppercase text-zinc-400">PickUp Law Agent</span>
           </div>
           <div className="flex items-center gap-2">

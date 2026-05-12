@@ -42,6 +42,13 @@ const KEYWORD_MAP: Record<Exclude<LegalCategory, 'unknown'>, string[]> = {
     'provident fund', 'gratuity', 'labour', 'work', 'office',
     'promotion', 'demotion', 'appraisal', 'increment',
   ],
+  consumer_case: [
+    'consumer', 'shop', 'bill', 'mrp', 'conductor', 'balance', 'change',
+    'bus', 'ticket', 'food', 'hotel', 'restaurant', 'delivery', 'refund',
+    'return', 'defective', 'warranty', 'guarantee', 'seller', 'e-commerce',
+    'amazon', 'flipkart', 'zomato', 'swiggy', 'rupee', 'kudukka', 'thara',
+    'passenger', 'price',
+  ],
 };
 
 /** Score a category against the query */
