@@ -54,12 +54,12 @@ export const Auth: React.FC = () => {
     setLoading(true); setError('');
 
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // This must match the Site URL + Redirect URL configured in Supabase dashboard
-          emailRedirectTo: `https://pickup-law-agent.vercel.app/auth/callback`,
+          emailRedirectTo: redirectTo,
         },
       });
       if (error) throw error;
@@ -77,10 +77,11 @@ export const Auth: React.FC = () => {
   const handleResend = async () => {
     setLoading(true); setError('');
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,
-        options: { emailRedirectTo: `https://pickup-law-agent.vercel.app/auth/callback` },
+        options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
     } catch (err: any) {
