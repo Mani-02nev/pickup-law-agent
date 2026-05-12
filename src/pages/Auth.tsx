@@ -74,8 +74,9 @@ export const Auth: React.FC = () => {
   };
 
   // ── Handle resend verification email ────────────────────────────────────────
+  const [resendSuccess, setResendSuccess] = useState(false);
   const handleResend = async () => {
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setResendSuccess(false);
     try {
       const redirectTo = `${window.location.origin}/auth/callback`;
       const { error } = await supabase.auth.resend({
@@ -83,7 +84,11 @@ export const Auth: React.FC = () => {
         email,
         options: { emailRedirectTo: redirectTo },
       });
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase Resend Error:', error);
+        throw error;
+      }
+      setResendSuccess(true);
     } catch (err: any) {
       setError(friendlyError(err.message || 'Could not resend email.'));
     } finally {
@@ -128,6 +133,13 @@ export const Auth: React.FC = () => {
           )}
 
           <div className="space-y-3">
+            {resendSuccess && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border border-green-900/30 bg-green-950/10">
+                <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                <p className="text-green-400 text-xs font-bold">Email sent! Please check your spam folder.</p>
+              </div>
+            )}
+
             <motion.button
               whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               onClick={handleResend}
@@ -135,7 +147,7 @@ export const Auth: React.FC = () => {
               className="w-full interactive-button flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-              Resend Verification Email
+              {resendSuccess ? 'Send Again' : 'Resend Verification Email'}
             </motion.button>
 
             <button
