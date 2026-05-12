@@ -5,7 +5,7 @@ import {
   Gavel, Plus, LogOut, ChevronRight,
   Globe, Youtube, MessageSquare, History, Trash2, Clock,
   Zap, BookOpen, Scale, GraduationCap, Briefcase, User,
-  ChevronDown, Sparkles, Settings
+  ChevronDown, Sparkles, Settings, Brain
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { supabase } from '../utils/supabase';
@@ -507,19 +507,53 @@ export const AgentApp: React.FC = () => {
                 {/* Thinking Indicator */}
                 {isTyping && <TypingIndicator state={thinkingState} />}
 
-                {/* Case choice buttons */}
+                {/* Case choice buttons — Claude Type Interactive Card */}
                 <AnimatePresence>
                   {!isTyping && mode === 'case' && chatState.step > 0 && !chatState.isComplete && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                      className="flex flex-wrap gap-2 justify-start pl-10 pt-2">
-                      {(QUESTION_TREES[chatState.category]?.[chatState.step - 1]?.options || []).map((opt, i) => (
-                        <motion.button key={i} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                          onClick={() => handleChoice(opt)} 
-                          disabled={thinkingState !== 'idle' || isTyping}
-                          className="px-4 py-2.5 bg-[#1a1a1a] hover:bg-[#2a2a2a] border border-[#333] hover:border-[#555] text-zinc-200 text-sm font-medium rounded-full transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                          {opt.label}
-                        </motion.button>
-                      ))}
+                    <motion.div 
+                      initial={{ opacity: 0, y: 12, scale: 0.99 }} 
+                      animate={{ opacity: 1, y: 0, scale: 1 }} 
+                      exit={{ opacity: 0, scale: 0.98 }}
+                      className="ml-10 mt-4 overflow-hidden rounded-2xl border border-[#1a1a1a] bg-[#050505] shadow-2xl"
+                    >
+                      {/* Card Header */}
+                      <div className="flex items-center justify-between bg-[#0a0a0a] px-4 py-2.5 border-b border-[#111]">
+                        <div className="flex items-center gap-2">
+                          <Brain className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Consultation Module</span>
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-zinc-800" />
+                        </div>
+                      </div>
+
+                      {/* Options Grid */}
+                      <div className="p-4 space-y-3">
+                        <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-tighter mb-1">Select the most accurate option:</p>
+                        <div className="flex flex-wrap gap-2.5">
+                          {(QUESTION_TREES[chatState.category]?.[chatState.step - 1]?.options || []).map((opt, i) => (
+                            <motion.button 
+                              key={i} 
+                              whileHover={{ scale: 1.02, backgroundColor: '#111' }} 
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => handleChoice(opt)} 
+                              disabled={thinkingState !== 'idle' || isTyping}
+                              className="group flex items-center gap-3 px-4 py-3 bg-[#080808] border border-[#1a1a1a] hover:border-emerald-500/50 text-zinc-200 text-sm font-medium rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                            >
+                              <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[#111] border border-[#1a1a1a] group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 transition-colors">
+                                <ChevronRight className="w-3.5 h-3.5 text-zinc-600 group-hover:text-emerald-400 transition-colors" />
+                              </span>
+                              {opt.label}
+                            </motion.button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="bg-[#030303] px-4 py-2 border-t border-[#111]">
+                        <p className="text-[9px] text-zinc-600 italic">This AI module is processing your legal context to refine the final report.</p>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -576,49 +610,13 @@ export const AgentApp: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Controls row */}
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => setShowRolePanel(v => !v)}
-                className={clsx('flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
-                  showRolePanel ? 'bg-white text-black border-white' : 'border-[#1a1a1a] text-zinc-500 hover:border-zinc-600 hover:text-white')}>
-                {(() => { const rc = ROLE_CONFIG.find(r => r.id === role)!; return <><rc.icon className="w-3.5 h-3.5" />{rc.label}</> })()}
-              </motion.button>
-
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => { setExploreMode(v => !v); setShowLangPicker(false); }}
-                className={clsx('flex items-center gap-2 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
-                  exploreMode ? 'bg-white text-black border-white' : 'border-[#1a1a1a] text-zinc-500 hover:border-zinc-600 hover:text-white')}>
-                <Zap className={clsx('w-3.5 h-3.5', exploreMode ? 'text-black' : 'text-zinc-600')} />
-                Explore {exploreMode ? 'ON' : 'OFF'}
-                <span className={clsx('w-7 h-3.5 rounded-full transition-all relative inline-block', exploreMode ? 'bg-black' : 'bg-zinc-700')}>
-                  <span className={clsx('absolute top-0.5 w-2.5 h-2.5 rounded-full transition-all', exploreMode ? 'right-0.5 bg-zinc-400' : 'left-0.5 bg-zinc-500')} />
-                </span>
-              </motion.button>
-
-              {/* Language picker — only when Explore is ON */}
-              {exploreMode && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                  onClick={() => setShowLangPicker(v => !v)}
-                  className={clsx(
-                    'flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all shrink-0',
-                    showLangPicker ? 'bg-white text-black border-white' : 'border-[#1a1a1a] text-zinc-500 hover:border-zinc-600 hover:text-white'
-                  )}>
-                  <span className="text-sm">{videoLang.flag}</span>
-                  {videoLang.label}
-                </motion.button>
-              )}
-            </div>
-
-            {/* Language picker dropdown — scrollable pill row */}
+            {/* Language picker dropdown — integrated inside if needed */}
             <AnimatePresence>
               {exploreMode && showLangPicker && (
                 <motion.div
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.15 }}
-                  className="flex items-center gap-2 overflow-x-auto no-scrollbar p-3 bg-[#070707] border border-[#1a1a1a] rounded-2xl">
+                  className="flex items-center gap-2 overflow-x-auto no-scrollbar p-3 bg-[#070707] border border-[#1a1a1a] rounded-2xl mb-2 shadow-2xl">
                   <span className="text-[9px] font-black text-zinc-700 uppercase tracking-widest shrink-0">🎥 YouTube Language:</span>
                   {CONTENT_LANGUAGES.map(lang => (
                     <motion.button
@@ -638,30 +636,97 @@ export const AgentApp: React.FC = () => {
               )}
             </AnimatePresence>
 
-            {/* Input */}
-            <div className="relative">
-              <input
-                ref={inputRef}
-                type="text"
-                id="legal-input"
-                className="chat-input pr-14"
-                style={{ height: '56px', fontSize: '15px' }}
-                placeholder={inputPlaceholder}
-                value={input}
-                disabled={inputDisabled}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !inputDisabled && handleSend()}
-              />
-              <motion.button
-                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                onClick={() => handleSend()}
-                disabled={inputDisabled || !input.trim()}
-                className={clsx(
-                  'absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl flex items-center justify-center transition-all',
-                  input.trim() && !inputDisabled ? 'bg-white text-black' : 'bg-[#111] text-zinc-700 cursor-not-allowed'
-                )}>
-                <ChevronRight className="w-5 h-5" />
-              </motion.button>
+            {/* Claude-Style Premium Input Container */}
+            <div className="relative group">
+              <div className={clsx(
+                "flex flex-col bg-[#0a0a0a] border transition-all duration-200 rounded-[24px] overflow-hidden shadow-2xl",
+                input.trim() ? "border-zinc-700 ring-1 ring-zinc-800" : "border-[#1a1a1a]"
+              )}>
+                <div className="flex items-center px-4 pt-4 pb-2">
+                  <button className="p-2 text-zinc-500 hover:text-white transition-colors rounded-xl hover:bg-zinc-900 shrink-0">
+                    <Plus className="w-5 h-5" />
+                  </button>
+                  
+                  <textarea
+                    ref={inputRef as any}
+                    rows={1}
+                    className="flex-1 bg-transparent border-none focus:ring-0 text-[15px] text-white placeholder-zinc-500 py-2 px-3 resize-none custom-scrollbar outline-none min-h-[44px]"
+                    placeholder={inputPlaceholder}
+                    value={input}
+                    disabled={inputDisabled}
+                    onChange={e => {
+                      setInput(e.target.value);
+                      // Auto-resize textarea
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey && !inputDisabled) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                  />
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                    onClick={() => handleSend()}
+                    disabled={inputDisabled || !input.trim()}
+                    className={clsx(
+                      'w-10 h-10 rounded-full flex items-center justify-center transition-all ml-2 shrink-0',
+                      input.trim() && !inputDisabled 
+                        ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+                        : 'bg-[#111] text-zinc-800 cursor-not-allowed'
+                    )}>
+                    <ChevronRight className="w-6 h-6 rotate-[-90deg] stroke-[2.5]" />
+                  </motion.button>
+                </div>
+
+                <div className="flex items-center justify-between px-5 pb-3 pt-1">
+                  <div className="flex items-center gap-2.5">
+                    {/* Mode Selector */}
+                    <button 
+                      onClick={() => setShowRolePanel(v => !v)}
+                      className={clsx(
+                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all",
+                        showRolePanel ? "bg-white text-black border-white" : "bg-[#111] border-[#1a1a1a] text-zinc-500 hover:text-white hover:border-zinc-600"
+                      )}>
+                      {(() => { const rc = ROLE_CONFIG.find(r => r.id === role)!; return <><rc.icon className="w-3 h-3" />{rc.label}</> })()}
+                    </button>
+
+                    {/* Explore Toggle */}
+                    <button 
+                      onClick={() => { setExploreMode(v => !v); setShowLangPicker(false); }}
+                      className={clsx(
+                        "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all",
+                        exploreMode ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-[#111] border-[#1a1a1a] text-zinc-600 hover:text-white hover:border-zinc-600"
+                      )}>
+                      <Zap className="w-3 h-3" /> Explore {exploreMode ? 'ON' : 'OFF'}
+                    </button>
+
+                    {/* Integrated Language Picker (Inside) */}
+                    {exploreMode && (
+                      <button 
+                        onClick={() => setShowLangPicker(v => !v)}
+                        className={clsx(
+                          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all",
+                          showLangPicker ? "bg-white text-black border-white" : "bg-[#111] border-[#1a1a1a] text-zinc-500"
+                        )}>
+                        <span className="text-[11px]">{videoLang.flag}</span> {videoLang.code.toUpperCase()}
+                      </button>
+                    )}
+
+                    <div className="w-px h-3 bg-zinc-800 mx-1" />
+
+                    <button className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-400 transition-colors">
+                      <Globe className="w-3 h-3" /> Search
+                    </button>
+                  </div>
+                  <div className="text-[10px] font-medium text-zinc-700">
+                    {input.length} / 2000
+                  </div>
+                </div>
+              </div>
             </div>
 
             <p className="text-center text-[9px] text-zinc-800 font-medium">
